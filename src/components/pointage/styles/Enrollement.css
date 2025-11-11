@@ -1,0 +1,93 @@
+/* Enrôlement */
+.enrollment-container {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  margin: 20px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.enrollment-container.success {
+  text-align: center;
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+}
+
+.photo-preview {
+  margin-top: 20px;
+}
+
+.preview-img {
+  max-width: 200px;
+  border-radius: 10px;
+  border: 2px solid #667eea;
+}
+
+/* Styles pour le chargement des modèles */
+.loading-models {
+  text-align: center;
+  padding: 40px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+
+.loading-models p {
+  margin-top: 15px;
+  font-size: 1.1em;
+  color: #667eea;
+}
+
+/* Instructions capture */
+.capture-instructions {
+  background: #e7f3ff;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+  text-align: left;
+}
+
+.capture-instructions ul {
+  margin: 10px 0 0 0;
+  padding-left: 20px;
+}
+
+.capture-instructions li {
+  margin-bottom: 8px;
+}
+
+/* Solutions d'erreur */
+.solution-steps {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.solution-steps ol {
+  margin: 10px 0;
+  padding-left: 25px;
+}
+
+.solution-steps li {
+  margin-bottom: 10px;
+}
+
+.solution-steps code {
+  background: #f4f4f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* États */
+.enrollment-container.error {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+}
+
+.enrollment-container.success {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+}

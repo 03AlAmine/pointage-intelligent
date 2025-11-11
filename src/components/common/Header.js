@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { supabase } from '../../config/supabase';
+import './Header.css';
 
 const Header = ({ user, currentView, onViewChange, isEnrolled }) => {
   const [employe, setEmploye] = useState(null);

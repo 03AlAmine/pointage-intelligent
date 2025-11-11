@@ -3,6 +3,7 @@ import Webcam from 'react-webcam';
 import UploadPhoto from './UploadPhoto';
 import { detectFaceAndComputeEmbedding, computeSimilarity, loadModels, areModelsLoaded } from '../../utils/faceDetection';
 import { supabase } from '../../config/supabase';
+import './styles/Pointage.css';
 
 const Pointage = ({ user }) => {
   const webcamRef = useRef(null);

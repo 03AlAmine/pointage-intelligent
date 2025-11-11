@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState } from 'react';
 import Webcam from 'react-webcam';
-
+import './styles/Camera.css';
 const Camera = ({ onCapture, isCapturing, autoCapture = false }) => {
   const webcamRef = useRef(null);
   const [facingMode, setFacingMode] = useState('user');

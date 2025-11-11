@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabase';
 import EnrollementModal from './EnrollementModal';
+import './styles/Dashboard.css';
 
 const Dashboard = () => {
   const [pointages, setPointages] = useState([]);

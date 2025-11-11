@@ -3,6 +3,7 @@ import Camera from './Camera';
 import UploadPhoto from './UploadPhoto';
 import { detectFaceAndComputeEmbedding } from '../../utils/faceDetection';
 import { supabase } from '../../config/supabase';
+import './styles/EnrollementModal.css';
 
 const EnrollementModal = ({ employe, onSuccess, onClose }) => {
   const [step, setStep] = useState(1);

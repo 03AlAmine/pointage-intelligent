@@ -1,0 +1,18 @@
+/* Caméra */
+.camera-container {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  margin: 20px 0;
+}
+
+.webcam-preview {
+  width: 100%;
+  max-width: 640px;
+  border-radius: 10px;
+  border: 3px solid #667eea;
+}
+
+.camera-controls {
+  margin-top: 20px;
+}

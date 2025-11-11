@@ -3,6 +3,7 @@ import Camera from './Camera';
 import UploadPhoto from './UploadPhoto';
 import { loadModels, detectFaceAndComputeEmbedding, areModelsLoaded } from '../../utils/faceDetection';
 import { supabase } from '../../config/supabase';
+import './styles/Enrollement.css';
 
 const Enrollement = ({ user, onEnrollmentComplete }) => {
   const [step, setStep] = useState(1);
