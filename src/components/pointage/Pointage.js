@@ -6,7 +6,8 @@ import {
   computeSimilarity,
   loadModels,
 } from "../../utils/faceDetection";
-import { db } from "../../config/firebase"; // Changé ici
+import { AdvancedRecognitionSystem } from "../../utils/advancedRecognition";
+import { db } from "../../config/firebase";
 import {
   collection,
   getDocs,
@@ -15,7 +16,8 @@ import {
   where,
   orderBy,
   limit,
-} from "firebase/firestore"; // Import Firestore
+} from "firebase/firestore";
+import * as faceapi from "face-api.js"; // 🔥 IMPORT MANQUANT
 import "../styles/Pointage.css";
 
 const Pointage = ({ user }) => {
@@ -31,6 +33,13 @@ const Pointage = ({ user }) => {
   const [showResultModal, setShowResultModal] = useState(false);
   const [showUnrecognizedModal, setShowUnrecognizedModal] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(true);
+
+  // États pour le feedback temps réel
+  const [faceQuality, setFaceQuality] = useState(0);
+  const [detectionFeedback, setDetectionFeedback] = useState("");
+  const [facePosition, setFacePosition] = useState({ x: 0, y: 0, size: 0 });
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
+
   const intervalRef = useRef(null);
 
   // Charger les modèles et vérifier les employés
@@ -57,7 +66,7 @@ const Pointage = ({ user }) => {
     initializeSystem();
   }, []);
 
-  // Vérifier les employés enrôlés - MODIFIÉ POUR FIRESTORE
+  // Vérifier les employés enrôlés - FIREBASE
   const checkEmployesEnroles = async () => {
     try {
       const q = query(
@@ -89,7 +98,73 @@ const Pointage = ({ user }) => {
     }
   };
 
-  // Gestion du scan automatique (identique)
+  // 🔥 CORRECTION: Fonction de pré-détection simplifiée et robuste
+  const checkFaceQuality = async () => {
+    if (!webcamRef.current || !modelsReady || !cameraReady || !cameraEnabled) {
+      setDetectionFeedback("⏳ Initialisation...");
+      return;
+    }
+
+    try {
+      const imageSrc = webcamRef.current.getScreenshot();
+      if (!imageSrc) {
+        setDetectionFeedback("📸 Capture en cours...");
+        return;
+      }
+
+   //   console.log("🔍 Vérification qualité visage...");
+
+      // 🔥 Utiliser directement detectFaceAndComputeEmbedding qui gère déjà les erreurs
+      try {
+        const embedding = await detectFaceAndComputeEmbedding(imageSrc);
+
+        // Si on arrive ici, un visage a été détecté avec succès
+        setFaceQuality(80); // Qualité élevée puisque la détection a réussi
+        setIsFaceDetected(true);
+        setDetectionFeedback("✅ Visage détecté - Prêt !");
+
+        // Position par défaut au centre (puisqu'on n'a pas les coordonnées exactes)
+        setFacePosition({
+          x: 50,
+          y: 50,
+          size: 30,
+        });
+      } catch (detectionError) {
+        // Si detectFaceAndComputeEmbedding échoue, c'est qu'aucun visage n'est détecté
+        setIsFaceDetected(false);
+        setFaceQuality(0);
+
+        if (detectionError.message.includes("Aucun visage détecté")) {
+          setDetectionFeedback("❌ Aucun visage - Centrez-vous");
+        } else {
+          setDetectionFeedback("⚠️ Positionnez votre visage");
+        }
+      }
+    } catch (error) {
+      console.log("⚠️ Erreur pré-détection:", error.message);
+      setIsFaceDetected(false);
+      setFaceQuality(0);
+      setDetectionFeedback("🔧 Système en calibration...");
+    }
+  };
+
+  // Intervalle de vérification qualité
+useEffect(() => {
+  if (cameraReady && modelsReady && cameraEnabled && activeMode === 'camera') {
+    console.log('🔧 Démarrage surveillance qualité...');
+    const interval = setInterval(checkFaceQuality, 2000); // 2 secondes au lieu de 1.5
+    return () => {
+      clearInterval(interval);
+      console.log('🔧 Arrêt surveillance qualité');
+    };
+  } else {
+    setIsFaceDetected(false);
+    setFaceQuality(0);
+    setDetectionFeedback('');
+  }
+}, [cameraReady, modelsReady, cameraEnabled, activeMode]);
+
+  // Gestion du scan automatique
   const startAutoScan = () => {
     if (
       intervalRef.current ||
@@ -109,7 +184,8 @@ const Pointage = ({ user }) => {
         webcamRef.current &&
         !showResultModal &&
         !showUnrecognizedModal &&
-        cameraEnabled
+        cameraEnabled &&
+        faceQuality > 50
       ) {
         await captureAndRecognize();
       }
@@ -150,9 +226,10 @@ const Pointage = ({ user }) => {
     showResultModal,
     showUnrecognizedModal,
     cameraEnabled,
+    faceQuality,
   ]);
 
-  // Fonction principale de reconnaissance - MODIFIÉE POUR FIRESTORE
+  // Fonction améliorée de reconnaissance
   const processFaceRecognition = async (imageSrc) => {
     if (!modelsReady) {
       throw new Error("Modèles de reconnaissance non chargés");
@@ -162,16 +239,15 @@ const Pointage = ({ user }) => {
       throw new Error("Aucun employé enrôlé dans le système");
     }
 
-    console.log("🎭 Calcul de l'embedding facial...");
-    const currentEmbedding = await detectFaceAndComputeEmbedding(imageSrc);
+    console.log("🎭 Lancement de la reconnaissance avancée...");
 
-    // Récupérer tous les employés avec embedding - FIRESTORE
+    // Récupérer les employés depuis FIRESTORE
     const q = query(
       collection(db, "employes"),
       where("embedding_facial", "!=", null)
     );
-    const querySnapshot = await getDocs(q);
 
+    const querySnapshot = await getDocs(q);
     const employes = querySnapshot.docs
       .map((doc) => ({
         id: doc.id,
@@ -184,33 +260,21 @@ const Pointage = ({ user }) => {
           emp.embedding_facial.length > 0
       );
 
-    if (!employes || employes.length === 0)
-      throw new Error("Aucun employé enrôlé");
-
-    console.log(`🔍 Recherche parmi ${employes.length} employés...`);
-
-    let bestMatch = null;
-    let bestSimilarity = 0;
-    const similarityThreshold = 0.6;
-
-    for (const emp of employes) {
-      try {
-        const similarity = computeSimilarity(
-          currentEmbedding,
-          emp.embedding_facial
-        );
-
-        if (similarity > bestSimilarity && similarity > similarityThreshold) {
-          bestSimilarity = similarity;
-          bestMatch = emp;
-        }
-      } catch (calcError) {
-        console.warn("Erreur calcul similarité:", calcError);
-      }
+    if (!employes || employes.length === 0) {
+      throw new Error("Aucun employé enrôlé dans le système");
     }
 
+    console.log(`📊 ${employes.length} employés chargés depuis Firestore`);
+
+    // Utiliser le système de reconnaissance avancé
+    const recognitionSystem = new AdvancedRecognitionSystem();
+    const { bestMatch, bestSimilarity } =
+      await recognitionSystem.processRecognition(imageSrc, employes);
+
     if (!bestMatch) {
-      throw new Error("Aucun employé reconnu sur cette photo");
+      throw new Error(
+        "Aucun employé reconnu. Essayez de mieux vous positionner face à la caméra."
+      );
     }
 
     return { bestMatch, bestSimilarity, imageSrc };
@@ -255,7 +319,8 @@ const Pointage = ({ user }) => {
 
       if (
         error.message.includes("Aucun visage détecté") ||
-        error.message.includes("Aucun employé reconnu")
+        error.message.includes("Aucun employé reconnu") ||
+        error.message.includes("Qualité du visage insuffisante")
       ) {
         setShowUnrecognizedModal(true);
         stopAutoScan();
@@ -289,7 +354,7 @@ const Pointage = ({ user }) => {
     } catch (error) {
       console.error("❌ Erreur reconnaissance:", error);
 
-      if (error.message === "Aucun employé reconnu sur cette photo") {
+      if (error.message.includes("Aucun employé reconnu")) {
         setShowUnrecognizedModal(true);
       } else {
         setLastResult({
@@ -302,7 +367,7 @@ const Pointage = ({ user }) => {
     }
   };
 
-  // Enregistrement pointage - MODIFIÉ POUR FIRESTORE
+  // Enregistrement pointage - FIREBASE
   const enregistrerPointage = async (employe, confidence, photoCapture) => {
     try {
       // Récupérer le dernier pointage - FIRESTORE
@@ -343,6 +408,16 @@ const Pointage = ({ user }) => {
       });
       return;
     }
+
+    // Vérifier la qualité avant capture manuelle
+    if (faceQuality < 30) {
+      setLastResult({
+        type: "warning",
+        message: "Qualité du visage trop faible. Approchez-vous de la caméra.",
+      });
+      return;
+    }
+
     await captureAndRecognize();
   };
 
@@ -541,6 +616,12 @@ const Pointage = ({ user }) => {
                     <div className="indicator-dot"></div>
                     Scan {autoCapture ? "Auto" : "Manuel"}
                   </div>
+                  <div
+                    className={`indicator ${isFaceDetected ? "active" : ""}`}
+                  >
+                    <div className="indicator-dot"></div>
+                    Visage {isFaceDetected ? "Détecté" : "Non détecté"}
+                  </div>
                 </div>
               </div>
 
@@ -557,6 +638,47 @@ const Pointage = ({ user }) => {
                       onUserMedia={handleCameraReady}
                       onUserMediaError={handleCameraError}
                     />
+
+                    {/* Overlay de détection en temps réel */}
+                    {cameraReady && (
+                      <div className="detection-overlay">
+                        {/* Cadre de guidage */}
+                        <div className="guide-frame"></div>
+
+                        {/* Indicateur de position du visage */}
+                        {isFaceDetected && (
+                          <div
+                            className="face-indicator"
+                            style={{
+                              left: `${facePosition.x}%`,
+                              top: `${facePosition.y}%`,
+                              width: `${facePosition.size}%`,
+                              height: `${facePosition.size}%`,
+                            }}
+                          >
+                            <div className="face-pulse"></div>
+                          </div>
+                        )}
+
+                        {/* Barre de qualité */}
+                        <div className="quality-indicator">
+                          <div className="quality-label">
+                            {detectionFeedback}
+                          </div>
+                          <div className="quality-bar">
+                            <div
+                              className="quality-fill"
+                              style={{ width: `${faceQuality}%` }}
+                            ></div>
+                          </div>
+                          <div className="quality-percentage">
+                            {faceQuality > 0
+                              ? `${Math.round(faceQuality)}%`
+                              : "--%"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {(!cameraReady || isScanning) && (
                       <div className="camera-overlay">
@@ -647,7 +769,8 @@ const Pointage = ({ user }) => {
                     employesCount === 0 ||
                     showResultModal ||
                     showUnrecognizedModal ||
-                    !cameraEnabled
+                    !cameraEnabled ||
+                    faceQuality < 30
                   }
                   className="scan-button primary"
                 >
@@ -757,8 +880,8 @@ const Pointage = ({ user }) => {
               <div className="modal-header">
                 <div className="modal-icon error">❌</div>
                 <div className="modal-title">
-                  <h3>Visage Non Reconnu</h3>
-                  <p>Reconnaissance faciale échouée</p>
+                  <h3>Reconnaissance Échouée</h3>
+                  <p>Le système n'a pas pu vous identifier</p>
                 </div>
                 <button
                   className="modal-close"
@@ -772,42 +895,40 @@ const Pointage = ({ user }) => {
                 <div className="unrecognized-content">
                   <div className="unrecognized-icon">👤</div>
                   <div className="unrecognized-text">
-                    <h4>Aucun visage détecté ou reconnu</h4>
-                    <p>
-                      Le système n'a pas pu identifier un visage dans l'image.
-                    </p>
+                    <h4>Conseils d'amélioration :</h4>
+                    <div className="improvement-tips">
+                      <div
+                        className={`tip-item ${
+                          faceQuality < 50 ? "highlight" : ""
+                        }`}
+                      >
+                        <span className="tip-icon">💡</span>
+                        <div className="tip-content">
+                          <strong>Améliorez l'éclairage</strong>
+                          <p>Placez-vous face à la lumière naturelle</p>
+                        </div>
+                      </div>
+                      <div
+                        className={`tip-item ${
+                          facePosition.size < 20 ? "highlight" : ""
+                        }`}
+                      >
+                        <span className="tip-icon">📏</span>
+                        <div className="tip-content">
+                          <strong>Approchez-vous</strong>
+                          <p>Distance idéale : 1 à 2 mètres</p>
+                        </div>
+                      </div>
+                      <div className="tip-item">
+                        <span className="tip-icon">🎯</span>
+                        <div className="tip-content">
+                          <strong>Regardez droit</strong>
+                          <p>Maintenez un contact visuel avec la caméra</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                {/* <div className="suggestions">
-                  <h5>Conseils pour une meilleure reconnaissance :</h5>
-                  <ul>
-                    <li>
-                      ✅ <strong>Bon éclairage naturel</strong> - Évitez les
-                      contre-jours
-                    </li>
-                    <li>
-                      ✅ <strong>Face à la caméra</strong> - Regardez
-                      directement l'objectif
-                    </li>
-                    <li>
-                      ✅ <strong>Expression neutre</strong> - Visage détendu,
-                      bouche fermée
-                    </li>
-                    <li>
-                      ✅ <strong>Pas d'accessoires</strong> - Retirez lunettes
-                      de soleil/casquette
-                    </li>
-                    <li>
-                      ✅ <strong>Position stable</strong> - Maintenez une
-                      distance fixe
-                    </li>
-                    <li>
-                      ✅ <strong>Arrière-plan simple</strong> - Évitez les fonds
-                      encombrés
-                    </li>
-                  </ul>
-                </div> */}
 
                 <div className="technical-info">
                   <details>

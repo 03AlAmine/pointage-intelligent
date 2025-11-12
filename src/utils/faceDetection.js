@@ -11,22 +11,31 @@ export const loadModels = async () => {
   const MODEL_URL = process.env.PUBLIC_URL + "/models";
 
   try {
-    console.log("🔄 Début chargement modèles...");
+    console.log("🔄 Chargement des modèles optimisés...");
 
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL), // 👈 AJOUT ICI
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-    ]);
-
+    // 🔥 CORRECTION: Charger les modèles COMPATIBLES
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL); // Nécessaire pour les descriptors
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    
     modelsLoaded = true;
-    console.log("✅ Tous les modèles chargés avec succès");
+    console.log("✅ Modèles optimisés chargés avec succès");
     return true;
   } catch (error) {
     console.error("❌ Erreur chargement modèles:", error);
-    modelsLoaded = false;
-    return false;
+    
+    // Fallback: essayer avec moins de modèles
+    try {
+      console.log("🔄 Essai avec modèles de base...");
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+      modelsLoaded = true;
+      console.log("✅ Modèles de base chargés (fallback)");
+      return true;
+    } catch (fallbackError) {
+      console.error("❌ Erreur fallback:", fallbackError);
+      return false;
+    }
   }
 };
 
@@ -43,65 +52,79 @@ export const detectFaceAndComputeEmbedding = async (imageSrc) => {
 
     const img = await faceapi.fetchImage(imageSrc);
 
-    // Essayer d'abord avec TinyFaceDetector (rapide)
-    let detections = await faceapi
-      .detectAllFaces(
-        img,
-        new faceapi.TinyFaceDetectorOptions({
-          inputSize: 320,
-          scoreThreshold: 0.4,
-        })
-      )
-      .withFaceLandmarks()
-      .withFaceDescriptors();
+    // 🔥 CORRECTION: Options OPTIMISÉES
+    const detectionOptions = new faceapi.TinyFaceDetectorOptions({
+      inputSize: 160,       // Plus petit = plus rapide
+      scoreThreshold: 0.3,  // Plus sensible
+    });
 
-    console.log("👤 Visages détectés (TinyFaceDetector):", detections.length);
-
-    // Si échec, essayer SSD Mobilenet (plus précis)
-    if (detections.length === 0) {
-      console.log("🔄 Essai avec SSD Mobilenet...");
+    // 🔥 CORRECTION: Détection AVEC landmarks (nécessaire pour descriptors)
+    let detections;
+    try {
       detections = await faceapi
-        .detectAllFaces(
-          img,
-          new faceapi.SsdMobilenetv1Options({
-            minConfidence: 0.5,
-          })
-        )
-        .withFaceLandmarks()
+        .detectAllFaces(img, detectionOptions)
+        .withFaceLandmarks()     // Nécessaire pour avoir les descriptors
+        .withFaceDescriptors();  // Génère l'embedding
+    } catch (landmarkError) {
+      console.log("⚠️ Fallback: détection sans landmarks");
+      // Fallback: détection basique si landmarks échoue
+      detections = await faceapi
+        .detectAllFaces(img, detectionOptions)
         .withFaceDescriptors();
-
-      console.log("👤 Visages détectés (SSD):", detections.length);
     }
+
+    console.log("👤 Visages détectés:", detections.length);
 
     if (detections.length === 0) {
       throw new Error(
-        "Aucun visage détecté. Conseils: \n• Bon éclairage naturel\n• Face à la caméra\n• Expression neutre\n• Pas d'accessoires"
+        "Aucun visage détecté. Conseils:\n• Éclairage uniforme\n• Distance 1-2 mètres\n• Regardez la caméra\n• Visage bien visible"
       );
     }
 
-    // Prendre le visage avec le meilleur score
-    const bestDetection = detections.reduce((best, current) =>
-      current.detection.score > best.detection.score ? current : best
-    );
-
-    console.log(
-      "✅ Visage détecté - Score:",
-      bestDetection.detection.score.toFixed(3)
-    );
+    // 🔥 CHANGEMENT: Sélection du MEILLEUR visage
+    const bestDetection = selectBestFace(detections);
+    
+    console.log("✅ Visage sélectionné - Score:", bestDetection.detection.score.toFixed(3));
+    console.log("📏 Taille visage:", bestDetection.detection.box.width.toFixed(0), "x", bestDetection.detection.box.height.toFixed(0));
 
     return Array.from(bestDetection.descriptor);
   } catch (error) {
-    //console.error('❌ Erreur détection visage:', error);
+    console.error('❌ Erreur détection:', error.message);
     throw error;
   }
 };
 
+// 🔥 NOUVEAU: Fonction pour sélectionner le MEILLEUR visage
+const selectBestFace = (detections) => {
+  return detections.reduce((best, current) => {
+    const currentScore = calculateFaceScore(current);
+    const bestScore = calculateFaceScore(best);
+    return currentScore > bestScore ? current : best;
+  });
+};
+
+// 🔥 NOUVEAU: Calcul d'un score combiné
+const calculateFaceScore = (detection) => {
+  const box = detection.detection.box;
+  
+  // Score basé sur:
+  const sizeScore = box.width * box.height;           // Plus grand = mieux
+  const confidenceScore = detection.detection.score;  // Confiance de détection
+  
+  // Calcul du centre (pour favoriser les visages centrés)
+  const centerX = Math.abs(box.x + box.width/2 - 320) / 320;
+  const centerScore = 1 - centerX;                    // Plus centré = mieux
+  
+  return sizeScore * confidenceScore * centerScore;
+};
+
+// 🔥 CHANGEMENT: Amélioration du calcul de similarité
 export const computeSimilarity = (embedding1, embedding2) => {
   if (!embedding1 || !embedding2 || embedding1.length !== embedding2.length) {
     return 0;
   }
 
-  // Distance cosinus pour de meilleurs résultats
+  // Distance cosinus (gardons celle qui fonctionnait)
   let dotProduct = 0;
   let norm1 = 0;
   let norm2 = 0;
