@@ -1,12 +1,28 @@
-import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import './Login.css';
-const Login = () => {
+
+const Login = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+
+  // Écouter les changements d'authentification
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && loginSuccess) {
+        console.log('✅ Utilisateur connecté, redirection...');
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [loginSuccess, onLoginSuccess]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,16 +32,37 @@ const Login = () => {
       if (isLogin) {
         // Connexion
         await signInWithEmailAndPassword(auth, email, password);
+        console.log('✅ Connexion réussie');
+        setLoginSuccess(true);
       } else {
         // Inscription
         await createUserWithEmailAndPassword(auth, email, password);
+        console.log('✅ Inscription réussie');
+        setLoginSuccess(true);
       }
     } catch (error) {
       alert(`Erreur: ${error.message}`);
+      setLoginSuccess(false);
     } finally {
       setLoading(false);
     }
   };
+
+  // Si la connexion a réussi, afficher un message de chargement
+  if (loginSuccess) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="success-message">
+            <div className="success-icon">✅</div>
+            <h3>Connexion réussie !</h3>
+            <p>Redirection en cours...</p>
+            <div className="loading-spinner"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container">

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import './styles/UploadPhoto.css';
+import '../styles/UploadPhoto.css';
 const UploadPhoto = ({ onPhotoUpload, isProcessing }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);

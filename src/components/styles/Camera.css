@@ -1,0 +1,474 @@
+/* === COMPOSANT CAMÉRA STYLISÉ === */
+
+.camera-container {
+  background: white;
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  margin: 2rem 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.camera-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.camera-header h3 {
+  color: #1e293b;
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.switch-camera-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.switch-camera-btn:hover {
+  background: linear-gradient(135deg, #5a6fd8, #6b46c1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* === PRÉVISUALISATION WEBCAM === */
+
+.webcam-preview {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  border: 4px solid #3b82f6;
+  background: #000;
+  display: block;
+  margin: 0 auto;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.webcam-preview:hover {
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+  border-color: #1d4ed8;
+}
+
+/* === CADRE DE GUIDAGE FACIAL === */
+
+.webcam-preview::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 250px;
+  border: 3px dashed rgba(59, 130, 246, 0.6);
+  border-radius: 20px;
+  pointer-events: none;
+  z-index: 2;
+  animation: pulseFrame 2s ease-in-out infinite;
+}
+
+@keyframes pulseFrame {
+  0%,
+  100% {
+    border-color: rgba(59, 130, 246, 0.6);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    border-color: rgba(59, 130, 246, 0.9);
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+}
+
+/* === CONTRÔLES CAMÉRA === */
+
+.camera-controls {
+  margin-top: 2rem;
+  text-align: center;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f1f5f9;
+}
+
+.capture-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 2.5rem;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.capture-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.capture-btn:hover::before {
+  left: 100%;
+}
+
+.capture-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
+.capture-btn:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+/* === MESSAGE DE TRAITEMENT === */
+
+.processing-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  border: 2px solid #f59e0b;
+  animation: pulseProcessing 2s ease-in-out infinite;
+}
+
+@keyframes pulseProcessing {
+  0%,
+  100% {
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+  }
+}
+
+.processing-message .spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(146, 64, 14, 0.3);
+  border-top: 3px solid #92400e;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* === INDICATEUR CAMÉRA ACTIVE === */
+
+.camera-container::after {
+  content: "";
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 12px;
+  height: 12px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: pulseRed 2s ease-in-out infinite;
+}
+
+@keyframes pulseRed {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+/* === ÉTAT AUTOMATIQUE === */
+
+.camera-container.auto-mode::after {
+  background: #10b981;
+  animation: pulseGreen 2s ease-in-out infinite;
+}
+
+@keyframes pulseGreen {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+.auto-capture-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #f0fdf4;
+  color: #065f46;
+  border: 2px solid #bbf7d0;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  animation: slideInDown 0.5s ease;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === MESSAGE D'INSTRUCTIONS === */
+
+.camera-instructions {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-top: 1.5rem;
+  border: 2px solid #3b82f6;
+}
+
+.camera-instructions h4 {
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.instruction-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.instruction-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.instruction-item.positive {
+  color: #065f46;
+}
+
+.instruction-item.negative {
+  color: #991b1b;
+}
+
+/* === ÉTATS DE CHARGEMENT === */
+
+.camera-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 2px dashed #cbd5e1;
+}
+
+.camera-loading .spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.camera-loading p {
+  color: #64748b;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* === ERREUR CAMÉRA === */
+
+.camera-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  background: #fef2f2;
+  border-radius: 16px;
+  border: 2px solid #fecaca;
+  text-align: center;
+}
+
+.camera-error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.camera-error h4 {
+  color: #dc2626;
+  margin: 0 0 1rem 0;
+  font-size: 1.3rem;
+}
+
+.camera-error p {
+  color: #991b1b;
+  margin: 0 0 1.5rem 0;
+}
+
+/* === RESPONSIVE DESIGN === */
+
+@media (max-width: 768px) {
+  .camera-container {
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+
+  .camera-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .camera-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .webcam-preview {
+    border-width: 3px;
+  }
+
+  .webcam-preview::before {
+    width: 150px;
+    height: 200px;
+  }
+
+  .capture-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 1.5rem 2rem;
+  }
+
+  .instruction-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .camera-container {
+    padding: 1rem;
+  }
+
+  .camera-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .switch-camera-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .webcam-preview::before {
+    width: 120px;
+    height: 160px;
+  }
+
+  .processing-message {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+}
+
+/* === ANIMATIONS D'ENTRÉE === */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.camera-container {
+  animation: fadeInUp 0.6s ease;
+}
+
+/* === EFFET DE FLASH PHOTO === */
+
+@keyframes flash {
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.camera-flash {
+  animation: flash 0.5s ease;
+}

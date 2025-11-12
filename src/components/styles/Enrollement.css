@@ -1,0 +1,673 @@
+/* === PAGE ENRÔLEMENT STYLISÉE === */
+
+.enrollment-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  min-height: calc(100vh - 80px);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.enrollment-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.enrollment-header h2 {
+  color: #1e293b;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.enrollment-header p {
+  color: #64748b;
+  font-size: 1.2rem;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* === FORMULAIRE ÉTAPE 1 === */
+
+.enrollment-form {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+  border: 1px solid #e2e8f0;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #374151;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.form-group input::placeholder {
+  color: #9ca3af;
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1.25rem;
+  cursor: pointer;
+}
+
+/* === SÉLECTEUR DE MODE === */
+
+.mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  font-size: 1rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.mode-btn:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border-color: #3b82f6;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+.mode-icon {
+  font-size: 2.5rem;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.mode-btn.active .mode-icon {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.mode-text {
+  flex: 1;
+}
+
+.mode-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.mode-description {
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
+/* === CHARGEMENT MODÈLES === */
+
+.loading-models {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.loading-models p {
+  margin: 1.5rem 0 0 0;
+  color: #64748b;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid #f1f5f9;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* === SECTION CAPTURE === */
+
+.capture-section {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+/* === INSTRUCTIONS CAPTURE === */
+
+.capture-instructions {
+  padding: 2.5rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-top: 1px solid #e2e8f0;
+}
+
+.capture-instructions h4 {
+  color: #1e293b;
+  margin: 0 0 2rem 0;
+  font-size: 1.4rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.instructions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.instruction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.instruction-item.positive {
+  background: white;
+  border: 1px solid #dcfce7;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.1);
+}
+
+.instruction-item.negative {
+  background: white;
+  border: 1px solid #fee2e2;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.1);
+}
+
+.instruction-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.instruction-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.instruction-content strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+
+.instruction-content p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* === PRÉVISUALISATION PHOTO === */
+
+.photo-preview {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  margin-top: 2rem;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-header h4 {
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.preview-header p {
+  color: #64748b;
+  margin: 0 0 2rem 0;
+  font-size: 1rem;
+}
+
+.preview-img {
+  max-width: 350px;
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  margin-bottom: 2rem;
+  border: 4px solid white;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* === ÉTAPE SUCCÈS === */
+
+.enrollment-container.success {
+  text-align: center;
+  background: white;
+  border-radius: 24px;
+  margin: 1rem auto;
+  padding: 3rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.success-animation {
+  margin-bottom: 2rem;
+}
+
+.success-icon {
+  font-size: 5rem;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-15px);
+  }
+  60% {
+    transform: translateY(-7px);
+  }
+}
+
+.enrollment-container.success h2 {
+  color: #059669;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+}
+
+.success-message {
+  font-size: 1.3rem;
+  color: #047857;
+  margin-bottom: 3rem;
+  font-weight: 500;
+}
+
+.final-photo {
+  margin: 2rem 0;
+}
+
+.enrollment-photo {
+  max-width: 280px;
+  width: 100%;
+  border-radius: 20px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+  border: 6px solid white;
+}
+
+.enrollment-details {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  padding: 2.5rem;
+  border-radius: 16px;
+  margin: 2.5rem 0;
+  border: 1px solid #bbf7d0;
+  display: inline-block;
+  text-align: left;
+  min-width: 400px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #bbf7d0;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-item strong {
+  color: #065f46;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.detail-item span {
+  color: #064e3b;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.next-steps {
+  background: #f8fafc;
+  padding: 2rem;
+  border-radius: 16px;
+  margin: 2rem 0;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+  display: inline-block;
+}
+
+.next-steps h4 {
+  color: #1e293b;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.next-steps ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.next-steps li {
+  padding: 0.75rem 0;
+  color: #374151;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* === BOUTONS === */
+
+.step-actions {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 2.5rem;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+  text-decoration: none;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+.primary-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.primary-btn.large {
+  padding: 1.5rem 3rem;
+  font-size: 1.2rem;
+}
+
+.secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 2.5rem;
+  background: white;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.secondary-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.step-navigation {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: transparent;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+}
+
+.btn-icon {
+  font-size: 1.2rem;
+}
+
+/* === ANIMATIONS === */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.enrollment-container > * {
+  animation: fadeIn 0.6s ease;
+}
+
+/* === SECTION UPLOAD === */
+
+.upload-section {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 2rem;
+}
+
+/* === RESPONSIVE DESIGN === */
+
+@media (max-width: 768px) {
+  .enrollment-container {
+    padding: 1rem;
+    margin: 0.5rem;
+  }
+  
+  .enrollment-header {
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .enrollment-header h2 {
+    font-size: 2rem;
+  }
+  
+  .enrollment-form {
+    padding: 1.5rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .mode-selector {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .mode-btn {
+    padding: 1.5rem;
+  }
+  
+  .instructions-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .photo-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .primary-btn,
+  .secondary-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .enrollment-details {
+    width: 100%;
+    margin: 1rem 0;
+    min-width: auto;
+    padding: 1.5rem;
+  }
+  
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .enrollment-container.success {
+    padding: 2rem 1.5rem;
+    margin: 0.5rem;
+  }
+  
+  .capture-instructions {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .enrollment-container {
+    padding: 0.5rem;
+  }
+  
+  .enrollment-header h2 {
+    font-size: 1.75rem;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 0.875rem 1.25rem;
+  }
+  
+  .mode-btn {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .mode-icon {
+    width: 50px;
+    height: 50px;
+  }
+}
