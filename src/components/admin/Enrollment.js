@@ -1,49 +1,42 @@
-import React, { useState, useEffect } from "react";
-import Camera from "../pointage/Camera";
-import UploadPhoto from "../pointage/UploadPhoto";
-import {
-  loadModels,
-  detectFaceAndComputeEmbedding,
-  areModelsLoaded,
-} from "../../utils/faceDetection";
-import { db } from "../../config/firebase"; // Import Firestore seulement
-import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
-import "../styles/Enrollement.css";
+import React, { useState, useEffect } from 'react';
+import Camera from '../pointage/Camera';
+import UploadPhoto from '../pointage/UploadPhoto';
+import { loadModels, detectFaceAndComputeEmbedding, areModelsLoaded } from '../../utils/faceDetection';
+import { supabase } from '../../config/supabase';
+import '../styles/Enrollement.css';
 
 const Enrollement = ({ user, onEnrollmentComplete }) => {
   const [step, setStep] = useState(1);
-  const [nom, setNom] = useState("");
-  const [prenom, setPrenom] = useState("");
-  const [email, setEmail] = useState("");
-  const [poste, setPoste] = useState("");
-  const [departement, setDepartement] = useState("");
+  const [nom, setNom] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [email, setEmail] = useState('');
+  const [poste, setPoste] = useState('');
+  const [departement, setDepartement] = useState('');
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [error, setError] = useState("");
-  const [loadingMessage, setLoadingMessage] = useState("");
-  const [activeMode, setActiveMode] = useState("camera");
+  const [error, setError] = useState('');
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [activeMode, setActiveMode] = useState('camera');
 
-  // Chargement des modèles (identique)
+  // Chargement des modèles
   useEffect(() => {
     const initModels = async () => {
       try {
-        setLoadingMessage("🔄 Chargement des modèles IA...");
+        setLoadingMessage('🔄 Chargement des modèles IA...');
         const loaded = await loadModels();
         setModelsLoaded(loaded);
-
+        
         if (loaded) {
-          setLoadingMessage("");
+          setLoadingMessage('');
         } else {
-          setError(
-            "Erreur lors du chargement des modèles de reconnaissance faciale"
-          );
-          setLoadingMessage("");
+          setError('Erreur lors du chargement des modèles de reconnaissance faciale');
+          setLoadingMessage('');
         }
       } catch (err) {
-        console.error("❌ Erreur initialisation:", err);
-        setError("Erreur initialisation IA: " + err.message);
-        setLoadingMessage("");
+        console.error('❌ Erreur initialisation:', err);
+        setError('Erreur initialisation IA: ' + err.message);
+        setLoadingMessage('');
       }
     };
 
@@ -58,65 +51,83 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
     await processEnrollment(imageSrc);
   };
 
-  // FONCTION PRINCIPALE MODIFIÉE POUR FIREBASE
+  
   const processEnrollment = async (imageSrc) => {
     setLoading(true);
-    setError("");
+    setError('');
     setPhoto(imageSrc);
-
+    
     try {
-      setLoadingMessage("🎭 Analyse du visage...");
-
+      setLoadingMessage('🎭 Analyse du visage...');
+      
       if (!areModelsLoaded()) {
         const loaded = await loadModels();
         if (!loaded) {
-          throw new Error("Modèles de reconnaissance non disponibles");
+          throw new Error('Modèles de reconnaissance non disponibles');
         }
       }
 
-      console.log("📸 Capture analysée...");
+      console.log('📸 Capture analysée...');
       const embedding = await detectFaceAndComputeEmbedding(imageSrc);
+      
+      setLoadingMessage('💾 Enregistrement...');
+      
+      // Vérifier si l'email existe déjà
+      const { data: existingEmploye, error: checkError } = await supabase
+        .from('employes')
+        .select('id')
+        .eq('email', email)
+        .single();
 
-      setLoadingMessage("💾 Enregistrement Firebase...");
-
-      // Vérifier si l'email existe déjà (identique logique)
-      const q = query(collection(db, "employes"), where("email", "==", email));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        throw new Error("Un employé avec cet email existe déjà");
+      if (existingEmploye && !checkError) {
+        throw new Error('Un employé avec cet email existe déjà');
       }
 
-      // ENREGISTREMENT FIREBASE - MÊME STRUCTURE QUE SUPABASE
-      const docRef = await addDoc(collection(db, "employes"), {
-        // Données identiques à Supabase
-        nom: nom,
-        prenom: prenom,
-        nom_complet: `${prenom} ${nom}`.trim(),
-        email: email,
-        poste: poste || null,
-        departement: departement || null,
-        embedding_facial: embedding, // Même embedding
-        photo_url: imageSrc, // Même base64
-        status: "enrole",
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
+      // Enregistrement dans Supabase
+      const { error } = await supabase
+        .from('employes')
+        .insert([
+          {
+            nom: nom,
+            prenom: prenom,
+            nom_complet: `${prenom} ${nom}`.trim(),
+            email: email,
+            poste: poste || null, // Devient optionnel
+            departement: departement || null, // Devient optionnel
+            embedding_facial: embedding,
+            photo_url: imageSrc,
+            status: 'enrole'
+          }
+        ])
+        .select();
 
-      console.log("✅ Enrôlement Firebase réussi! ID:", docRef.id);
+      if (error) {
+        if (error.code === '23505') { // Violation de contrainte unique
+          if (error.message.includes('email')) {
+            throw new Error('Un employé avec cet email existe déjà');
+          }
+        }
+        throw error;
+      }
+
+      console.log('✅ Enrôlement réussi!');
       setStep(3);
+      
     } catch (error) {
-      console.error("❌ Erreur enrôlement Firebase:", error);
+      console.error('❌ Erreur enrôlement:', error);
       setError(error.message);
       setPhoto(null);
     } finally {
       setLoading(false);
-      setLoadingMessage("");
+      setLoadingMessage('');
     }
   };
 
   const isFormValid = () => {
-    return nom.trim() && prenom.trim() && email.trim();
+    return nom.trim() && 
+           prenom.trim() && 
+           email.trim();
+    // Poste et département ne sont plus requis
   };
 
   // Afficher les erreurs de modèles
@@ -125,9 +136,10 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
       <div className="enrollment-container error">
         <h2>❌ Erreur</h2>
         <p>{error}</p>
-
+      
+        
         <div className="step-actions">
-          <button onClick={() => setError("")} className="primary-btn">
+          <button onClick={() => setError('')} className="primary-btn">
             🔄 Réessayer
           </button>
         </div>
@@ -142,7 +154,7 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
           <h2>👤 Enrôlement d'un Employé</h2>
           <p>Ajoutez un nouvel employé au système de pointage</p>
         </div>
-
+        
         <div className="enrollment-form">
           <div className="form-row">
             <div className="form-group">
@@ -155,7 +167,7 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
                 required
               />
             </div>
-
+            
             <div className="form-group">
               <label>Prénom *</label>
               <input
@@ -167,7 +179,7 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
               />
             </div>
           </div>
-
+          
           <div className="form-group">
             <label>Email professionnel *</label>
             <input
@@ -178,7 +190,7 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
               required
             />
           </div>
-
+          
           <div className="form-row">
             <div className="form-group">
               <label>Poste (optionnel)</label>
@@ -189,7 +201,7 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
                 placeholder="Ex: Développeur, Manager..."
               />
             </div>
-
+            
             <div className="form-group">
               <label>Département (optionnel)</label>
               <select
@@ -211,9 +223,9 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
             </div>
           </div>
         </div>
-
+        
         <div className="step-actions">
-          <button
+          <button 
             onClick={() => setStep(2)}
             className="primary-btn large"
             disabled={!isFormValid()}
@@ -234,9 +246,9 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
         </div>
 
         <div className="mode-selector">
-          <button
-            className={`mode-btn ${activeMode === "camera" ? "active" : ""}`}
-            onClick={() => setActiveMode("camera")}
+          <button 
+            className={`mode-btn ${activeMode === 'camera' ? 'active' : ''}`}
+            onClick={() => setActiveMode('camera')}
           >
             <span className="mode-icon">📷</span>
             <div className="mode-text">
@@ -244,9 +256,9 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
               <div className="mode-description">Utilisez votre caméra</div>
             </div>
           </button>
-          <button
-            className={`mode-btn ${activeMode === "upload" ? "active" : ""}`}
-            onClick={() => setActiveMode("upload")}
+          <button 
+            className={`mode-btn ${activeMode === 'upload' ? 'active' : ''}`}
+            onClick={() => setActiveMode('upload')}
           >
             <span className="mode-icon">📁</span>
             <div className="mode-text">
@@ -268,10 +280,13 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
           </div>
         ) : (
           <>
-            {activeMode === "camera" ? (
+            {activeMode === 'camera' ? (
               <div className="capture-section">
-                <Camera onCapture={handlePhotoCapture} isCapturing={loading} />
-
+                <Camera 
+                  onCapture={handlePhotoCapture}
+                  isCapturing={loading}
+                />
+                
                 <div className="capture-instructions">
                   <h4>💡 Instructions pour l'employé :</h4>
                   <div className="instructions-grid">
@@ -315,7 +330,7 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
               </div>
             ) : (
               <div className="upload-section">
-                <UploadPhoto
+                <UploadPhoto 
                   onPhotoUpload={handlePhotoUpload}
                   isProcessing={loading}
                 />
@@ -323,7 +338,7 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
             )}
           </>
         )}
-
+        
         {photo && !loading && (
           <div className="photo-preview">
             <div className="preview-header">
@@ -331,20 +346,19 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
               <p>Vérifiez que la photo est claire et conforme</p>
             </div>
             <div className="preview-content">
-              <img
-                src={photo}
-                alt="Aperçu du visage de l'employé"
-                className="preview-img"
-              />
+              <img src={photo} alt="Aperçu du visage de l'employé" className="preview-img" />
               <div className="photo-actions">
-                <button
+                <button 
                   onClick={() => setPhoto(null)}
                   className="secondary-btn"
                 >
                   <span className="btn-icon">🔄</span>
                   Changer de photo
                 </button>
-                <button onClick={() => setStep(3)} className="primary-btn">
+                <button 
+                  onClick={() => setStep(3)}
+                  className="primary-btn"
+                >
                   <span className="btn-icon">✅</span>
                   Confirmer et terminer
                 </button>
@@ -354,7 +368,10 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
         )}
 
         <div className="step-navigation">
-          <button onClick={() => setStep(1)} className="back-btn">
+          <button 
+            onClick={() => setStep(1)}
+            className="back-btn"
+          >
             <span className="btn-icon">↩️</span>
             Retour aux informations
           </button>
@@ -369,52 +386,44 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
         <div className="success-animation">
           <div className="success-icon">🎉</div>
         </div>
-
+        
         <h2>Employé Enrôlé avec Succès !</h2>
-        <p className="success-message">
-          L'employé a été ajouté au système de pointage.
-        </p>
-
+        <p className="success-message">L'employé a été ajouté au système de pointage.</p>
+        
         {photo && (
           <div className="final-photo">
             <h4>Photo d'enrôlement :</h4>
-            <img
-              src={photo}
-              alt="Employé enrôlé"
-              className="enrollment-photo"
-            />
+            <img src={photo} alt="Employé enrôlé" className="enrollment-photo" />
           </div>
         )}
-
+        
         <div className="enrollment-details">
           <div className="detail-item">
-            <strong>Nom complet:</strong>
-            <span>
-              {prenom} {nom}
-            </span>
+            <strong>Nom complet:</strong> 
+            <span>{prenom} {nom}</span>
           </div>
           <div className="detail-item">
-            <strong>Email:</strong>
+            <strong>Email:</strong> 
             <span>{email}</span>
           </div>
           {poste && (
             <div className="detail-item">
-              <strong>Poste:</strong>
+              <strong>Poste:</strong> 
               <span>{poste}</span>
             </div>
           )}
           {departement && (
             <div className="detail-item">
-              <strong>Département:</strong>
+              <strong>Département:</strong> 
               <span>{departement}</span>
             </div>
           )}
           <div className="detail-item">
-            <strong>Date d'enrôlement:</strong>
-            <span>{new Date().toLocaleDateString("fr-FR")}</span>
+            <strong>Date d'enrôlement:</strong> 
+            <span>{new Date().toLocaleDateString('fr-FR')}</span>
           </div>
         </div>
-
+        
         <div className="next-steps">
           <h4>Prochaines étapes :</h4>
           <ul>
@@ -423,12 +432,15 @@ const Enrollement = ({ user, onEnrollmentComplete }) => {
             <li>👤 La reconnaissance faciale est configurée</li>
           </ul>
         </div>
-
+        
         <div className="step-actions">
-          <button onClick={onEnrollmentComplete} className="primary-btn large">
+          <button 
+            onClick={onEnrollmentComplete}
+            className="primary-btn large"
+          >
             ➕ Ajouter un autre employé
           </button>
-          <button
+          <button 
             onClick={() => window.location.reload()}
             className="secondary-btn"
           >

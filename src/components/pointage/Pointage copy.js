@@ -6,16 +6,7 @@ import {
   computeSimilarity,
   loadModels,
 } from "../../utils/faceDetection";
-import { db } from "../../config/firebase"; // Changé ici
-import {
-  collection,
-  getDocs,
-  addDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "firebase/firestore"; // Import Firestore
+import { supabase } from "../../config/supabase";
 import "../styles/Pointage.css";
 
 const Pointage = ({ user }) => {
@@ -30,7 +21,7 @@ const Pointage = ({ user }) => {
   const [activeMode, setActiveMode] = useState("camera");
   const [showResultModal, setShowResultModal] = useState(false);
   const [showUnrecognizedModal, setShowUnrecognizedModal] = useState(false);
-  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(true); // Nouvel état pour activer/désactiver la caméra
   const intervalRef = useRef(null);
 
   // Charger les modèles et vérifier les employés
@@ -57,27 +48,20 @@ const Pointage = ({ user }) => {
     initializeSystem();
   }, []);
 
-  // Vérifier les employés enrôlés - MODIFIÉ POUR FIRESTORE
+  // Vérifier les employés enrôlés
   const checkEmployesEnroles = async () => {
     try {
-      const q = query(
-        collection(db, "employes"),
-        where("embedding_facial", "!=", null)
-      );
-      const querySnapshot = await getDocs(q);
+      const { data, error } = await supabase
+        .from("employes")
+        .select("id")
+        .not("embedding_facial", "is", null)
+        .not("embedding_facial", "eq", "[]");
 
-      const employesAvecEmbedding = querySnapshot.docs.filter((doc) => {
-        const data = doc.data();
-        return (
-          data.embedding_facial &&
-          Array.isArray(data.embedding_facial) &&
-          data.embedding_facial.length > 0
-        );
-      });
+      if (error) throw error;
 
-      setEmployesCount(employesAvecEmbedding.length);
+      setEmployesCount(data?.length || 0);
 
-      if (employesAvecEmbedding.length === 0) {
+      if (data?.length === 0) {
         setLastResult({
           type: "warning",
           message:
@@ -89,7 +73,7 @@ const Pointage = ({ user }) => {
     }
   };
 
-  // Gestion du scan automatique (identique)
+  // Gestion du scan automatique
   const startAutoScan = () => {
     if (
       intervalRef.current ||
@@ -152,7 +136,7 @@ const Pointage = ({ user }) => {
     cameraEnabled,
   ]);
 
-  // Fonction principale de reconnaissance - MODIFIÉE POUR FIRESTORE
+  // Fonction principale de reconnaissance
   const processFaceRecognition = async (imageSrc) => {
     if (!modelsReady) {
       throw new Error("Modèles de reconnaissance non chargés");
@@ -165,25 +149,13 @@ const Pointage = ({ user }) => {
     console.log("🎭 Calcul de l'embedding facial...");
     const currentEmbedding = await detectFaceAndComputeEmbedding(imageSrc);
 
-    // Récupérer tous les employés avec embedding - FIRESTORE
-    const q = query(
-      collection(db, "employes"),
-      where("embedding_facial", "!=", null)
-    );
-    const querySnapshot = await getDocs(q);
+    const { data: employes, error } = await supabase
+      .from("employes")
+      .select("id, nom, email, embedding_facial")
+      .not("embedding_facial", "is", null)
+      .not("embedding_facial", "eq", "[]");
 
-    const employes = querySnapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      .filter(
-        (emp) =>
-          emp.embedding_facial &&
-          Array.isArray(emp.embedding_facial) &&
-          emp.embedding_facial.length > 0
-      );
-
+    if (error) throw new Error("Erreur de connexion à la base de données");
     if (!employes || employes.length === 0)
       throw new Error("Aucun employé enrôlé");
 
@@ -194,6 +166,9 @@ const Pointage = ({ user }) => {
     const similarityThreshold = 0.6;
 
     for (const emp of employes) {
+      if (!emp.embedding_facial || !Array.isArray(emp.embedding_facial))
+        continue;
+
       try {
         const similarity = computeSimilarity(
           currentEmbedding,
@@ -216,6 +191,7 @@ const Pointage = ({ user }) => {
     return { bestMatch, bestSimilarity, imageSrc };
   };
 
+  // Capture depuis la caméra
   // Capture depuis la caméra
   const captureAndRecognize = async () => {
     if (
@@ -248,18 +224,21 @@ const Pointage = ({ user }) => {
       await enregistrerPointage(bestMatch, bestSimilarity, capturedImage);
       setEmploye(bestMatch);
 
+      // Afficher le modal avec les résultats
       setShowResultModal(true);
-      stopAutoScan();
+      stopAutoScan(); // Arrêter le scan automatique pendant l'affichage du modal
     } catch (error) {
       console.log("❌ Erreur reconnaissance:", error.message);
 
+      // Gérer spécifiquement le cas "Aucun visage détecté"
       if (
         error.message.includes("Aucun visage détecté") ||
         error.message.includes("Aucun employé reconnu")
       ) {
         setShowUnrecognizedModal(true);
-        stopAutoScan();
+        stopAutoScan(); // Arrêter le scan automatique pendant l'affichage du modal
       }
+      // Les autres erreurs (modèles non chargés, etc.) sont ignorées silencieusement pour le scan auto
     } finally {
       setIsScanning(false);
     }
@@ -289,6 +268,7 @@ const Pointage = ({ user }) => {
     } catch (error) {
       console.error("❌ Erreur reconnaissance:", error);
 
+      // Gérer spécifiquement le cas "visage non reconnu" pour l'upload
       if (error.message === "Aucun employé reconnu sur cette photo") {
         setShowUnrecognizedModal(true);
       } else {
@@ -302,31 +282,28 @@ const Pointage = ({ user }) => {
     }
   };
 
-  // Enregistrement pointage - MODIFIÉ POUR FIRESTORE
   const enregistrerPointage = async (employe, confidence, photoCapture) => {
     try {
-      // Récupérer le dernier pointage - FIRESTORE
-      const q = query(
-        collection(db, "pointages"),
-        where("employe_id", "==", employe.id),
-        orderBy("timestamp", "desc"),
-        limit(1)
-      );
-      const querySnapshot = await getDocs(q);
+      const { data: derniersPointages } = await supabase
+        .from("pointages")
+        .select("*")
+        .eq("employe_id", employe.id)
+        .order("timestamp", { ascending: false })
+        .limit(1);
 
-      const dernierPointage = querySnapshot.docs[0]?.data();
+      const dernierPointage = derniersPointages?.[0];
       const type = dernierPointage?.type === "entrée" ? "sortie" : "entrée";
 
-      // Enregistrer le nouveau pointage - FIRESTORE
-      await addDoc(collection(db, "pointages"), {
-        employe_id: employe.id,
-        type: type,
-        photo_capture_url: photoCapture,
-        confidence: parseFloat(confidence.toFixed(4)),
-        timestamp: new Date(),
-        employe_nom: employe.nom,
-        employe_email: employe.email,
-      });
+      const { error } = await supabase.from("pointages").insert([
+        {
+          employe_id: employe.id,
+          type: type,
+          photo_capture_url: photoCapture,
+          confidence: parseFloat(confidence.toFixed(4)),
+        },
+      ]);
+
+      if (error) throw error;
 
       console.log(`📝 Pointage ${type} enregistré pour ${employe.nom}`);
     } catch (error) {
@@ -350,6 +327,7 @@ const Pointage = ({ user }) => {
     setShowResultModal(false);
     setShowUnrecognizedModal(false);
     setEmploye(null);
+    // Redémarrer le scan automatique si activé
     if (
       autoCapture &&
       modelsReady &&
@@ -364,6 +342,7 @@ const Pointage = ({ user }) => {
 
   const handleCloseUnrecognizedModal = () => {
     setShowUnrecognizedModal(false);
+    // Redémarrer le scan automatique si activé
     if (
       autoCapture &&
       modelsReady &&
@@ -389,6 +368,7 @@ const Pointage = ({ user }) => {
   const toggleCamera = () => {
     setCameraEnabled(!cameraEnabled);
     if (!cameraEnabled) {
+      // Si on réactive la caméra, redémarrer le scan auto si nécessaire
       if (
         autoCapture &&
         modelsReady &&
@@ -399,6 +379,7 @@ const Pointage = ({ user }) => {
         startAutoScan();
       }
     } else {
+      // Si on désactive la caméra, arrêter le scan auto
       stopAutoScan();
     }
   };

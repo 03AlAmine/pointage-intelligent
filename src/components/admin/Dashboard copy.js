@@ -1,15 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../config/firebase';
-import { 
-  collection, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot
-} from 'firebase/firestore';
+import { supabase } from '../../config/supabase';
 import '../styles/Dashboard.css';
 
 const Dashboard = ({ user, onNavigateToEnrollment }) => {
@@ -23,24 +13,24 @@ const Dashboard = ({ user, onNavigateToEnrollment }) => {
   useEffect(() => {
     loadData();
 
-    // Abonnement en temps réel - FIRESTORE
-    const pointagesUnsubscribe = onSnapshot(
-      collection(db, 'pointages'), 
-      () => {
+    // Abonnement en temps réel
+    const pointagesChannel = supabase
+      .channel('pointages-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pointages' }, () => {
         loadPointages();
-      }
-    );
+      })
+      .subscribe();
 
-    const employesUnsubscribe = onSnapshot(
-      collection(db, 'employes'), 
-      () => {
+    const employesChannel = supabase
+      .channel('employes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employes' }, () => {
         loadEmployes();
-      }
-    );
+      })
+      .subscribe();
 
     return () => {
-      pointagesUnsubscribe();
-      employesUnsubscribe();
+      supabase.removeChannel(pointagesChannel);
+      supabase.removeChannel(employesChannel);
     };
   }, [dateFilter, activeTab]);
 
@@ -59,99 +49,35 @@ const Dashboard = ({ user, onNavigateToEnrollment }) => {
   };
 
   const loadPointages = async () => {
-    try {
-      // Convertir la date en objets Date normaux
-      const startDate = new Date(dateFilter + 'T00:00:00');
-      const endDate = new Date(dateFilter + 'T23:59:59');
-      
-      const q = query(
-        collection(db, 'pointages'),
-        orderBy('timestamp', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const pointagesData = [];
-      
-      // Filtrer manuellement par date (Firestore ne supporte pas bien les dates complexes)
-      for (const docSnap of querySnapshot.docs) {
-        const pointage = {
-          id: docSnap.id,
-          ...docSnap.data()
-        };
-        
-        // Convertir le timestamp Firestore en Date JavaScript
-        let pointageDate;
-        if (pointage.timestamp && pointage.timestamp.toDate) {
-          pointageDate = pointage.timestamp.toDate();
-        } else if (pointage.timestamp) {
-          pointageDate = new Date(pointage.timestamp);
-        } else {
-          pointageDate = new Date();
-        }
-        
-        // Vérifier si le pointage est dans la plage de dates
-        const pointageDateOnly = pointageDate.toISOString().split('T')[0];
-        if (pointageDateOnly === dateFilter) {
-          // Récupérer les infos de l'employé
-          if (pointage.employe_id) {
-            try {
-              const employeDoc = await getDocs(
-                query(collection(db, 'employes'), where('__name__', '==', pointage.employe_id))
-              );
-              if (!employeDoc.empty) {
-                pointage.employe = employeDoc.docs[0].data();
-              }
-            } catch (err) {
-              console.warn('Erreur chargement employé:', err);
-            }
-          }
-          
-          pointagesData.push({
-            ...pointage,
-            formattedDate: pointageDate
-          });
-        }
-      }
-      
-      setPointages(pointagesData);
-    } catch (error) {
-      console.error('Erreur chargement pointages:', error);
-      throw error;
-    }
+    const { data, error } = await supabase
+      .from('pointages')
+      .select(`
+        *,
+        employes (
+          nom,
+          email
+        )
+      `)
+      .gte('timestamp', `${dateFilter}T00:00:00`)
+      .lte('timestamp', `${dateFilter}T23:59:59`)
+      .order('timestamp', { ascending: false });
+
+    if (error) throw error;
+    setPointages(data || []);
   };
 
   const loadEmployes = async () => {
-    try {
-      const q = query(collection(db, 'employes'));
-      const querySnapshot = await getDocs(q);
-      const employesData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        
-        // Gérer la date de création
-        let createdDate;
-        if (data.created_at && data.created_at.toDate) {
-          createdDate = data.created_at.toDate();
-        } else if (data.created_at) {
-          createdDate = new Date(data.created_at);
-        } else {
-          createdDate = new Date(); // Date par défaut
-        }
-        
-        return {
-          id: doc.id,
-          ...data,
-          formattedCreatedAt: createdDate
-        };
-      }).sort((a, b) => a.nom?.localeCompare(b.nom)); // Trier par nom
-      
-      setEmployes(employesData);
-    } catch (error) {
-      console.error('Erreur chargement employés:', error);
-      throw error;
-    }
+    const { data, error } = await supabase
+      .from('employes')
+      .select('*')
+      .order('nom', { ascending: true });
+
+    if (error) throw error;
+    setEmployes(data || []);
   };
 
   const handleAddEmploye = () => {
+    // Rediriger directement vers la page d'enrôlement
     if (onNavigateToEnrollment) {
       onNavigateToEnrollment();
     }
@@ -162,25 +88,9 @@ const Dashboard = ({ user, onNavigateToEnrollment }) => {
 
     try {
       setError('');
-      
-      // Supprimer les pointages de l'employé - FIRESTORE
-      const pointagesQuery = query(
-        collection(db, 'pointages'), 
-        where('employe_id', '==', id)
-      );
-      const pointagesSnapshot = await getDocs(pointagesQuery);
-      
-      const deletePromises = pointagesSnapshot.docs.map(docSnap => 
-        deleteDoc(doc(db, 'pointages', docSnap.id))
-      );
-      
-      await Promise.all(deletePromises);
-      
-      // Supprimer l'employé - FIRESTORE
-      await deleteDoc(doc(db, 'employes', id));
-      
-      console.log('✅ Employé et pointages supprimés');
-      
+      await supabase.from('pointages').delete().eq('employe_id', id);
+      const { error } = await supabase.from('employes').delete().eq('id', id);
+      if (error) throw error;
     } catch (error) {
       console.error('Erreur suppression employé:', error);
       setError(`Erreur lors de la suppression: ${error.message}`);
@@ -197,17 +107,17 @@ const Dashboard = ({ user, onNavigateToEnrollment }) => {
       const csvData =
         activeTab === 'pointages'
           ? pointages.map((p) => [
-              p.employe?.nom || 'N/A',
-              p.employe?.email || 'N/A',
+              p.employes?.nom || 'N/A',
+              p.employes?.email || 'N/A',
               p.type,
-              p.formattedDate.toLocaleDateString(),
-              p.formattedDate.toLocaleTimeString(),
+              new Date(p.timestamp).toLocaleDateString(),
+              new Date(p.timestamp).toLocaleTimeString(),
               p.confidence ? `${(p.confidence * 100).toFixed(1)}%` : 'N/A',
             ])
           : employes.map((e) => [
-              e.nom || 'N/A',
-              e.email || 'N/A',
-              e.formattedCreatedAt.toLocaleDateString(),
+              e.nom,
+              e.email,
+              e.date_creation ? new Date(e.date_creation).toLocaleDateString() : 'N/A',
               e.embedding_facial?.length > 0 ? 'Enrôlé' : 'Non enrôlé',
             ]);
 
@@ -353,8 +263,8 @@ const Dashboard = ({ user, onNavigateToEnrollment }) => {
                       <tr key={pointage.id} className="data-row">
                         <td>
                           <div className="employe-info">
-                            <strong>{pointage.employe?.nom || 'N/A'}</strong>
-                            <span>{pointage.employe?.email || 'N/A'}</span>
+                            <strong>{pointage.employes?.nom || 'N/A'}</strong>
+                            <span>{pointage.employes?.email || 'N/A'}</span>
                           </div>
                         </td>
                         <td>
@@ -364,8 +274,8 @@ const Dashboard = ({ user, onNavigateToEnrollment }) => {
                         </td>
                         <td>
                           <div className="datetime-info">
-                            <span className="date">{pointage.formattedDate.toLocaleDateString()}</span>
-                            <span className="time">{pointage.formattedDate.toLocaleTimeString()}</span>
+                            <span className="date">{new Date(pointage.timestamp).toLocaleDateString()}</span>
+                            <span className="time">{new Date(pointage.timestamp).toLocaleTimeString()}</span>
                           </div>
                         </td>
                         <td>
@@ -480,7 +390,10 @@ const Dashboard = ({ user, onNavigateToEnrollment }) => {
                           </div>
                         </td>
                         <td>
-                          {employe.formattedCreatedAt.toLocaleDateString()}
+                          {employe.date_creation 
+                            ? new Date(employe.date_creation).toLocaleDateString()
+                            : 'N/A'
+                          }
                         </td>
                         <td>
                           <div className="action-buttons">
