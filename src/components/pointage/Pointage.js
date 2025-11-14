@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Webcam from "react-webcam";
 import UploadPhoto from "./UploadPhoto";
 import {
   detectFaceAndComputeEmbedding,
-  computeSimilarity,
   loadModels,
+  getLoadedModels,
 } from "../../utils/faceDetection";
 import { AdvancedRecognitionSystem } from "../../utils/advancedRecognition";
 import { db } from "../../config/firebase";
@@ -17,7 +17,6 @@ import {
   orderBy,
   limit,
 } from "firebase/firestore";
-import * as faceapi from "face-api.js"; // 🔥 IMPORT MANQUANT
 import "../styles/Pointage.css";
 
 const Pointage = ({ user }) => {
@@ -43,6 +42,7 @@ const Pointage = ({ user }) => {
   const intervalRef = useRef(null);
 
   // Charger les modèles et vérifier les employés
+  // 🔥 Dans useEffect d'initialisation
   useEffect(() => {
     const initializeSystem = async () => {
       try {
@@ -51,6 +51,19 @@ const Pointage = ({ user }) => {
         const modelsLoaded = await loadModels();
         setModelsReady(modelsLoaded);
 
+        // 🔥 NOUVEAU: Afficher les modèles chargés
+        if (modelsLoaded && getLoadedModels) {
+          const loadedModels = getLoadedModels();
+          console.log("✅ Modèles chargés:", loadedModels);
+
+          if (!loadedModels.recognition) {
+            setLastResult({
+              type: "warning",
+              message: "Système en mode basique - Fonctionnalités limitées",
+            });
+          }
+        }
+
         if (modelsLoaded) {
           await checkEmployesEnroles();
         }
@@ -58,7 +71,7 @@ const Pointage = ({ user }) => {
         console.error("❌ Erreur initialisation:", error);
         setLastResult({
           type: "error",
-          message: "Erreur initialisation système",
+          message: "Erreur initialisation: " + error.message,
         });
       }
     };
@@ -98,8 +111,8 @@ const Pointage = ({ user }) => {
     }
   };
 
-  // 🔥 CORRECTION: Fonction de pré-détection simplifiée et robuste
-  const checkFaceQuality = async () => {
+  // 🔥 CORRECTION: Fonction checkFaceQuality optimisée
+  const checkFaceQuality = useCallback(async () => {
     if (!webcamRef.current || !modelsReady || !cameraReady || !cameraEnabled) {
       setDetectionFeedback("⏳ Initialisation...");
       return;
@@ -112,57 +125,69 @@ const Pointage = ({ user }) => {
         return;
       }
 
-   //   console.log("🔍 Vérification qualité visage...");
+      // 🔥 DÉTECTION RAPIDE uniquement
+      const embedding = await detectFaceAndComputeEmbedding(imageSrc);
 
-      // 🔥 Utiliser directement detectFaceAndComputeEmbedding qui gère déjà les erreurs
-      try {
-        const embedding = await detectFaceAndComputeEmbedding(imageSrc);
+      setFaceQuality(85); // 🔥 Qualité haute si détection réussie
+      setIsFaceDetected(true);
+      setDetectionFeedback("✅ Visage détecté - Prêt !");
 
-        // Si on arrive ici, un visage a été détecté avec succès
-        setFaceQuality(80); // Qualité élevée puisque la détection a réussi
-        setIsFaceDetected(true);
-        setDetectionFeedback("✅ Visage détecté - Prêt !");
-
-        // Position par défaut au centre (puisqu'on n'a pas les coordonnées exactes)
-        setFacePosition({
-          x: 50,
-          y: 50,
-          size: 30,
-        });
-      } catch (detectionError) {
-        // Si detectFaceAndComputeEmbedding échoue, c'est qu'aucun visage n'est détecté
-        setIsFaceDetected(false);
-        setFaceQuality(0);
-
-        if (detectionError.message.includes("Aucun visage détecté")) {
-          setDetectionFeedback("❌ Aucun visage - Centrez-vous");
-        } else {
-          setDetectionFeedback("⚠️ Positionnez votre visage");
-        }
-      }
+      // Position par défaut centrée
+      setFacePosition({ x: 50, y: 50, size: 35 });
     } catch (error) {
-      console.log("⚠️ Erreur pré-détection:", error.message);
       setIsFaceDetected(false);
       setFaceQuality(0);
-      setDetectionFeedback("🔧 Système en calibration...");
-    }
-  };
 
-  // Intervalle de vérification qualité
-useEffect(() => {
-  if (cameraReady && modelsReady && cameraEnabled && activeMode === 'camera') {
-    console.log('🔧 Démarrage surveillance qualité...');
-    const interval = setInterval(checkFaceQuality, 2000); // 2 secondes au lieu de 1.5
-    return () => {
-      clearInterval(interval);
-      console.log('🔧 Arrêt surveillance qualité');
-    };
-  } else {
-    setIsFaceDetected(false);
-    setFaceQuality(0);
-    setDetectionFeedback('');
-  }
-}, [cameraReady, modelsReady, cameraEnabled, activeMode]);
+      if (error.message.includes("Aucun visage détecté")) {
+        setDetectionFeedback("❌ Aucun visage - Centrez-vous");
+      } else {
+        setDetectionFeedback("⚠️ Approchez-vous de la caméra");
+      }
+    }
+  }, [modelsReady, cameraReady, cameraEnabled]);
+
+  // 🔥 CORRECTION: Intervalle optimisé
+  useEffect(() => {
+    if (
+      cameraReady &&
+      modelsReady &&
+      cameraEnabled &&
+      activeMode === "camera"
+    ) {
+      console.log("🔧 Démarrage surveillance qualité...");
+      const interval = setInterval(checkFaceQuality, 2500); // 🔥 2.5 secondes
+
+      return () => {
+        clearInterval(interval);
+      };
+    } else {
+      setIsFaceDetected(false);
+      setFaceQuality(0);
+      setDetectionFeedback("");
+    }
+  }, [cameraReady, modelsReady, cameraEnabled, activeMode, checkFaceQuality]); // 🔥 checkFaceQuality dans les dépendances
+
+  // 🔥 CORRECTION: Capture manuelle améliorée
+  const handleManualCapture = async () => {
+    if (!modelsReady || !cameraReady || employesCount === 0) {
+      setLastResult({
+        type: "error",
+        message: "Système non prêt pour la reconnaissance",
+      });
+      return;
+    }
+
+    // 🔥 SEUIL PLUS BAS pour capture manuelle
+    if (faceQuality < 20) {
+      setLastResult({
+        type: "warning",
+        message: "Positionnez votre visage dans le cadre",
+      });
+      return;
+    }
+
+    await captureAndRecognize();
+  };
 
   // Gestion du scan automatique
   const startAutoScan = () => {
@@ -398,27 +423,6 @@ useEffect(() => {
       console.error("❌ Erreur enregistrement:", error);
       throw error;
     }
-  };
-
-  const handleManualCapture = async () => {
-    if (!modelsReady || !cameraReady || employesCount === 0) {
-      setLastResult({
-        type: "error",
-        message: "Système non prêt pour la reconnaissance",
-      });
-      return;
-    }
-
-    // Vérifier la qualité avant capture manuelle
-    if (faceQuality < 30) {
-      setLastResult({
-        type: "warning",
-        message: "Qualité du visage trop faible. Approchez-vous de la caméra.",
-      });
-      return;
-    }
-
-    await captureAndRecognize();
   };
 
   const handleCloseModal = () => {

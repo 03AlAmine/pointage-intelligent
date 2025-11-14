@@ -1,98 +1,70 @@
-// advancedRecognition.js
-import { detectFaceAndComputeEmbedding, computeSimilarity } from './faceDetection';
+import { detectFaceAndComputeEmbedding, computeSimilarity, getLoadedModels } from './faceDetection';
 
 export class AdvancedRecognitionSystem {
   constructor() {
-    this.similarityThreshold = 0.6; // 🔥 Seuil plus bas pour plus de flexibilité
-    this.maxRetries = 2;            // 🔥 Nombre de tentatives
-    this.qualityThreshold = 0.3;    // 🔥 Qualité minimale du visage
+    this.similarityThreshold = 0.5;    // 🔥 Seuil réaliste
+    this.highConfidenceThreshold = 0.7;
+    this.maxRetries = 1;
   }
 
   async processRecognition(imageSrc, employes) {
-    let bestMatch = null;
-    let bestSimilarity = 0;
-    let attempts = 0;
-    let lastError = null;
+    console.log(`🎯 Reconnaissance - ${employes.length} employés`);
 
-    console.log(`🔍 Début reconnaissance - ${employes.length} employés`);
+    // 🔥 VÉRIFIER LES MODÈLES DISPONIBLES
+    const loadedModels = getLoadedModels && getLoadedModels();
+    console.log("📋 Modèles chargés:", loadedModels);
 
-    while (attempts < this.maxRetries && !bestMatch) {
-      try {
-        console.log(`🔄 Tentative ${attempts + 1}/${this.maxRetries}`);
-        
-        const embedding = await detectFaceAndComputeEmbedding(imageSrc);
-        
-        // 🔥 Vérifier la qualité de l'embedding
-        if (!this.isGoodQualityEmbedding(embedding)) {
-          throw new Error("Qualité du visage insuffisante - image trop floue ou sombre");
-        }
-
-        // 🔥 Recherche du meilleur match
-        for (const emp of employes) {
-          if (!emp.embedding_facial || !Array.isArray(emp.embedding_facial)) {
-            console.log(`⚠️ Employé ${emp.nom} sans embedding`);
-            continue;
-          }
-
-          const similarity = computeSimilarity(embedding, emp.embedding_facial);
-          console.log(`📊 ${emp.nom}: ${(similarity * 100).toFixed(1)}%`);
-          
-          if (similarity > bestSimilarity && similarity > this.similarityThreshold) {
-            bestSimilarity = similarity;
-            bestMatch = emp;
-          }
-        }
-
-        if (bestMatch) {
-          console.log(`✅ Match trouvé: ${bestMatch.nom} (${(bestSimilarity * 100).toFixed(1)}%)`);
-          break;
-        } else {
-          console.log(`❌ Aucun match au-dessus du seuil (${this.similarityThreshold})`);
-        }
-
-      } catch (error) {
-        lastError = error;
-        console.log(`❌ Tentative ${attempts + 1} échouée:`, error.message);
-      }
-      
-      attempts++;
-      
-      // 🔥 Attendre avant de réessayer (sauf si c'est la dernière tentative)
-      if (attempts < this.maxRetries && !bestMatch) {
-        console.log(`⏳ Attente avant nouvelle tentative...`);
-        await this.delay(800); // Attendre 800ms
-      }
+    if (!loadedModels || !loadedModels.faceDetector) {
+      throw new Error("Système de détection non chargé");
     }
 
-    if (!bestMatch && lastError) {
-      throw lastError;
+    if (!loadedModels.recognition) {
+      throw new Error("Système de reconnaissance incomplet - Rechargez l'application");
     }
 
-    return { bestMatch, bestSimilarity };
-  }
+    try {
+      const embedding = await detectFaceAndComputeEmbedding(imageSrc);
+      
+      if (!embedding) {
+        throw new Error("Impossible de générer l'empreinte faciale");
+      }
 
-  // 🔥 Vérifie si l'embedding est de bonne qualité
-  isGoodQualityEmbedding(embedding) {
-    if (!embedding || embedding.length === 0) return false;
-    
-    // Calculer la variance des valeurs de l'embedding
-    const mean = embedding.reduce((a, b) => a + b) / embedding.length;
-    const variance = embedding.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / embedding.length;
-    
-    console.log(`📈 Qualité embedding: variance = ${variance.toFixed(6)}`);
-    
-    // Si la variance est trop faible, l'image est probablement de mauvaise qualité
-    return variance > 0.0005;
-  }
+      let bestMatch = null;
+      let bestSimilarity = 0;
 
-  // 🔥 Fonction d'attente
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+      // 🔥 RECHERCHE SIMPLIFIÉE
+      for (const emp of employes) {
+        if (!emp.embedding_facial || !Array.isArray(emp.embedding_facial)) {
+          console.log(`⚠️ Employé ${emp.nom} sans embedding valide`);
+          continue;
+        }
 
-  // 🔥 Méthode pour ajuster dynamiquement le seuil
-  setSimilarityThreshold(threshold) {
-    this.similarityThreshold = Math.max(0.3, Math.min(0.9, threshold));
-    console.log(`🎚️ Nouveau seuil de similarité: ${this.similarityThreshold}`);
+        const similarity = computeSimilarity(embedding, emp.embedding_facial);
+        
+        console.log(`📊 ${emp.nom}: ${(similarity * 100).toFixed(1)}%`);
+
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity;
+          bestMatch = emp;
+        }
+      }
+
+      // 🔥 DÉCISION SIMPLIFIÉE
+      if (bestSimilarity > this.highConfidenceThreshold) {
+        console.log(`🎉 HAUTE CONFIANCE: ${bestMatch.nom} (${(bestSimilarity * 100).toFixed(1)}%)`);
+        return { bestMatch, bestSimilarity };
+      }
+      else if (bestSimilarity > this.similarityThreshold) {
+        console.log(`✅ Reconnaissance: ${bestMatch.nom} (${(bestSimilarity * 100).toFixed(1)}%)`);
+        return { bestMatch, bestSimilarity };
+      }
+      else {
+        throw new Error(`Aucune correspondance (meilleur: ${(bestSimilarity * 100).toFixed(1)}%)`);
+      }
+
+    } catch (error) {
+      console.error("❌ Erreur reconnaissance:", error.message);
+      throw error;
+    }
   }
 }
