@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Webcam from "react-webcam";
 import UploadPhoto from "./UploadPhoto";
+import * as faceapi from "face-api.js";
 import {
   detectFaceAndComputeEmbedding,
   loadModels,
@@ -16,6 +17,7 @@ import {
   where,
   orderBy,
   limit,
+  serverTimestamp,
 } from "firebase/firestore";
 import "../styles/Pointage.css";
 
@@ -33,45 +35,35 @@ const Pointage = ({ user }) => {
   const [showUnrecognizedModal, setShowUnrecognizedModal] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(true);
 
-  // États pour le feedback temps réel
-  const [faceQuality, setFaceQuality] = useState(0);
-  const [detectionFeedback, setDetectionFeedback] = useState("");
-  const [facePosition, setFacePosition] = useState({ x: 0, y: 0, size: 0 });
-  const [isFaceDetected, setIsFaceDetected] = useState(false);
+  // 🔥 SIMPLIFICATION des états de détection
+  const [detectionStatus, setDetectionStatus] = useState("initializing"); // 'initializing', 'no_face', 'detected', 'good_quality'
+  const [facePosition, setFacePosition] = useState({ x: 50, y: 50, size: 30 });
 
   const intervalRef = useRef(null);
 
-  // Charger les modèles et vérifier les employés
-  // 🔥 Dans useEffect d'initialisation
+  // 🔥 INITIALISATION SIMPLIFIÉE
   useEffect(() => {
     const initializeSystem = async () => {
       try {
-        console.log("🔄 Initialisation du système...");
+        console.log("🔄 Initialisation du système de pointage...");
 
+        // Charger les modèles
         const modelsLoaded = await loadModels();
         setModelsReady(modelsLoaded);
 
-        // 🔥 NOUVEAU: Afficher les modèles chargés
-        if (modelsLoaded && getLoadedModels) {
-          const loadedModels = getLoadedModels();
-          console.log("✅ Modèles chargés:", loadedModels);
-
-          if (!loadedModels.recognition) {
-            setLastResult({
-              type: "warning",
-              message: "Système en mode basique - Fonctionnalités limitées",
-            });
-          }
-        }
-
         if (modelsLoaded) {
           await checkEmployesEnroles();
+        } else {
+          setLastResult({
+            type: "error",
+            message: "Échec du chargement des modèles IA",
+          });
         }
       } catch (error) {
         console.error("❌ Erreur initialisation:", error);
         setLastResult({
           type: "error",
-          message: "Erreur initialisation: " + error.message,
+          message: "Erreur d'initialisation: " + error.message,
         });
       }
     };
@@ -79,7 +71,7 @@ const Pointage = ({ user }) => {
     initializeSystem();
   }, []);
 
-  // Vérifier les employés enrôlés - FIREBASE
+  // 🔥 VÉRIFICATION EMPLOYÉS OPTIMISÉE
   const checkEmployesEnroles = async () => {
     try {
       const q = query(
@@ -105,48 +97,153 @@ const Pointage = ({ user }) => {
           message:
             "Aucun employé enrôlé. Veuillez enrôler des employés d'abord.",
         });
+      } else {
+        console.log(`✅ ${employesAvecEmbedding.length} employé(s) enrôlé(s)`);
       }
     } catch (error) {
-      console.error("Erreur vérification employés:", error);
+      console.error("❌ Erreur vérification employés:", error);
+      setLastResult({
+        type: "error",
+        message: "Erreur de connexion à la base de données",
+      });
     }
   };
 
-  // 🔥 CORRECTION: Fonction checkFaceQuality optimisée
-  const checkFaceQuality = useCallback(async () => {
-    if (!webcamRef.current || !modelsReady || !cameraReady || !cameraEnabled) {
-      setDetectionFeedback("⏳ Initialisation...");
+  // 🔥 DÉTECTION DE QUALITÉ SIMPLIFIÉE
+// 🔥 CORRECTION POUR LA NOUVELLE STRUCTURE
+const checkFaceQuality = useCallback(async () => {
+  if (!webcamRef.current || !modelsReady || !cameraReady || !cameraEnabled) {
+    setDetectionStatus("initializing");
+    return;
+  }
+
+  try {
+    const imageSrc = webcamRef.current.getScreenshot();
+    if (!imageSrc) {
+      setDetectionStatus("initializing");
+      return;
+    }
+
+    // Chargement de l'image
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = imageSrc;
+    });
+
+    let detections = [];
+    
+    try {
+      const detectionOptions = new faceapi.TinyFaceDetectorOptions({
+        inputSize: 160,
+        scoreThreshold: 0.3
+      });
+
+      detections = await faceapi.detectAllFaces(img, detectionOptions);
+    } catch (detectionError) {
+      console.warn("⚠️ Erreur détection faciale:", detectionError.message);
+      setDetectionStatus("no_face");
+      return;
+    }
+
+    // 🔥 VALIDATION CORRECTE POUR LA NOUVELLE STRUCTURE
+    if (!detections || !Array.isArray(detections) || detections.length === 0) {
+      setDetectionStatus("no_face");
+      return;
+    }
+
+    let bestDetection = null;
+    let bestScore = 0;
+
+    for (const detection of detections) {
+      // 🔥 UTILISER LES GETTERS CORRECTS
+      if (!detection) {
+        console.warn("⚠️ Détection null ignorée");
+        continue;
+      }
+
+      try {
+        // 🔥 UTILISER LES GETTERS COMME .box AU LIEU DE ._box
+        const box = detection.box; // ✅ Getter correct
+        const score = detection.score; // ✅ Getter correct
+        
+        if (!box || typeof score !== 'number') {
+          console.warn("⚠️ Détection incomplète:", detection);
+          continue;
+        }
+
+        // 🔥 VALIDATION DES PROPRIÉTÉS DE LA BOX
+        const x = box.x;
+        const y = box.y;
+        const width = box.width;
+        const height = box.height;
+
+        if (typeof x !== 'number' || typeof y !== 'number' || 
+            typeof width !== 'number' || typeof height !== 'number' ||
+            width <= 0 || height <= 0 || 
+            x < 0 || y < 0 || 
+            x + width > 640 || y + height > 480) {
+          console.warn("⚠️ Box invalide:", { x, y, width, height });
+          continue;
+        }
+
+        // Calcul du score de qualité
+        const faceSize = Math.max(width, height);
+        const qualityScore = score * Math.min(faceSize / 200, 1);
+
+        if (qualityScore > bestScore) {
+          bestScore = qualityScore;
+          bestDetection = detection;
+        }
+
+      } catch (error) {
+        console.warn("⚠️ Erreur traitement détection:", error);
+        continue;
+      }
+    }
+
+    if (!bestDetection) {
+      setDetectionStatus("no_face");
       return;
     }
 
     try {
-      const imageSrc = webcamRef.current.getScreenshot();
-      if (!imageSrc) {
-        setDetectionFeedback("📸 Capture en cours...");
-        return;
-      }
+      // 🔥 UTILISER LES GETTERS POUR LA MEILLEURE DÉTECTION
+      const box = bestDetection.box;
+      const score = bestDetection.score;
+      
+      const faceSize = Math.max(box.width, box.height);
+      
+      // 🔥 CRITÈRES DE QUALITÉ
+      const isGoodQuality = 
+        score > 0.5 && 
+        faceSize > 80 && 
+        faceSize < 400;
 
-      // 🔥 DÉTECTION RAPIDE uniquement
-      const embedding = await detectFaceAndComputeEmbedding(imageSrc);
+      setDetectionStatus(isGoodQuality ? "good_quality" : "detected");
+      
+      // 🔥 CALCUL DE LA POSITION
+      const x = Math.max(0, Math.min(100, 50 - ((box.x + box.width / 2) / 640) * 100));
+      const y = Math.max(0, Math.min(100, 50 - ((box.y + box.height / 2) / 480) * 100));
+      const size = Math.max(10, Math.min(50, (faceSize / 480) * 100));
 
-      setFaceQuality(85); // 🔥 Qualité haute si détection réussie
-      setIsFaceDetected(true);
-      setDetectionFeedback("✅ Visage détecté - Prêt !");
+      setFacePosition({ x, y, size });
 
-      // Position par défaut centrée
-      setFacePosition({ x: 50, y: 50, size: 35 });
+      console.log(`✅ Détection: score=${score.toFixed(2)}, taille=${Math.round(faceSize)}, qualité=${isGoodQuality ? 'bonne' : 'moyenne'}`);
+
     } catch (error) {
-      setIsFaceDetected(false);
-      setFaceQuality(0);
-
-      if (error.message.includes("Aucun visage détecté")) {
-        setDetectionFeedback("❌ Aucun visage - Centrez-vous");
-      } else {
-        setDetectionFeedback("⚠️ Approchez-vous de la caméra");
-      }
+      console.warn("⚠️ Erreur traitement meilleure détection:", error);
+      setDetectionStatus("no_face");
     }
-  }, [modelsReady, cameraReady, cameraEnabled]);
 
-  // 🔥 CORRECTION: Intervalle optimisé
+  } catch (error) {
+    console.log("⚠️ Erreur détection qualité:", error.message);
+    setDetectionStatus("no_face");
+    setFacePosition({ x: 50, y: 50, size: 30 });
+  }
+}, [modelsReady, cameraReady, cameraEnabled]);
+  // 🔥 INTERVALLE DE DÉTECTION OPTIMISÉ
   useEffect(() => {
     if (
       cameraReady &&
@@ -154,20 +251,18 @@ const Pointage = ({ user }) => {
       cameraEnabled &&
       activeMode === "camera"
     ) {
-      console.log("🔧 Démarrage surveillance qualité...");
-      const interval = setInterval(checkFaceQuality, 2500); // 🔥 2.5 secondes
+      console.log("🔍 Démarrage surveillance caméra...");
+      const interval = setInterval(checkFaceQuality, 2000); // 2 secondes
 
       return () => {
         clearInterval(interval);
       };
     } else {
-      setIsFaceDetected(false);
-      setFaceQuality(0);
-      setDetectionFeedback("");
+      setDetectionStatus("initializing");
     }
-  }, [cameraReady, modelsReady, cameraEnabled, activeMode, checkFaceQuality]); // 🔥 checkFaceQuality dans les dépendances
+  }, [cameraReady, modelsReady, cameraEnabled, activeMode, checkFaceQuality]);
 
-  // 🔥 CORRECTION: Capture manuelle améliorée
+  // 🔥 CAPTURE MANUELLE AMÉLIORÉE
   const handleManualCapture = async () => {
     if (!modelsReady || !cameraReady || employesCount === 0) {
       setLastResult({
@@ -177,11 +272,10 @@ const Pointage = ({ user }) => {
       return;
     }
 
-    // 🔥 SEUIL PLUS BAS pour capture manuelle
-    if (faceQuality < 20) {
+    if (detectionStatus !== "good_quality") {
       setLastResult({
         type: "warning",
-        message: "Positionnez votre visage dans le cadre",
+        message: "Positionnez votre visage correctement dans le cadre",
       });
       return;
     }
@@ -189,7 +283,7 @@ const Pointage = ({ user }) => {
     await captureAndRecognize();
   };
 
-  // Gestion du scan automatique
+  // 🔥 SCAN AUTOMATIQUE OPTIMISÉ
   const startAutoScan = () => {
     if (
       intervalRef.current ||
@@ -200,18 +294,12 @@ const Pointage = ({ user }) => {
       showResultModal ||
       showUnrecognizedModal ||
       !cameraEnabled
-    )
+    ) {
       return;
+    }
 
     intervalRef.current = setInterval(async () => {
-      if (
-        !isScanning &&
-        webcamRef.current &&
-        !showResultModal &&
-        !showUnrecognizedModal &&
-        cameraEnabled &&
-        faceQuality > 50
-      ) {
+      if (!isScanning && detectionStatus === "good_quality") {
         await captureAndRecognize();
       }
     }, 3000);
@@ -251,10 +339,10 @@ const Pointage = ({ user }) => {
     showResultModal,
     showUnrecognizedModal,
     cameraEnabled,
-    faceQuality,
+    detectionStatus, // 🔥 Dépendance importante
   ]);
 
-  // Fonction améliorée de reconnaissance
+  // 🔥 RECONNAISSANCE FACIALE AMÉLIORÉE
   const processFaceRecognition = async (imageSrc) => {
     if (!modelsReady) {
       throw new Error("Modèles de reconnaissance non chargés");
@@ -264,9 +352,9 @@ const Pointage = ({ user }) => {
       throw new Error("Aucun employé enrôlé dans le système");
     }
 
-    console.log("🎭 Lancement de la reconnaissance avancée...");
+    console.log("🎭 Lancement de la reconnaissance faciale...");
 
-    // Récupérer les employés depuis FIRESTORE
+    // Récupérer les employés depuis Firestore
     const q = query(
       collection(db, "employes"),
       where("embedding_facial", "!=", null)
@@ -285,27 +373,27 @@ const Pointage = ({ user }) => {
           emp.embedding_facial.length > 0
       );
 
-    if (!employes || employes.length === 0) {
-      throw new Error("Aucun employé enrôlé dans le système");
+    if (employes.length === 0) {
+      throw new Error("Aucun employé avec embedding facial valide");
     }
 
-    console.log(`📊 ${employes.length} employés chargés depuis Firestore`);
+    console.log(`📊 ${employes.length} employés chargés pour reconnaissance`);
 
-    // Utiliser le système de reconnaissance avancé
+    // Utiliser le système de reconnaissance
     const recognitionSystem = new AdvancedRecognitionSystem();
-    const { bestMatch, bestSimilarity } =
-      await recognitionSystem.processRecognition(imageSrc, employes);
+    const result = await recognitionSystem.processRecognition(
+      imageSrc,
+      employes
+    );
 
-    if (!bestMatch) {
-      throw new Error(
-        "Aucun employé reconnu. Essayez de mieux vous positionner face à la caméra."
-      );
+    if (!result.bestMatch) {
+      throw new Error("Aucun employé reconnu");
     }
 
-    return { bestMatch, bestSimilarity, imageSrc };
+    return result;
   };
 
-  // Capture depuis la caméra
+  // 🔥 CAPTURE ET RECONNAISSANCE
   const captureAndRecognize = async () => {
     if (
       !webcamRef.current ||
@@ -315,47 +403,54 @@ const Pointage = ({ user }) => {
       showResultModal ||
       showUnrecognizedModal ||
       !cameraEnabled
-    )
+    ) {
       return;
+    }
 
     setIsScanning(true);
+    stopAutoScan(); // 🔥 Arrêter le scan pendant le traitement
 
     try {
-      console.log("📸 Capture depuis la caméra...");
+      console.log("📸 Capture et reconnaissance...");
       const imageSrc = webcamRef.current.getScreenshot();
       if (!imageSrc) throw new Error("Impossible de capturer l'image");
 
-      const {
-        bestMatch,
-        bestSimilarity,
-        imageSrc: capturedImage,
-      } = await processFaceRecognition(imageSrc);
+      const result = await processFaceRecognition(imageSrc);
 
       console.log(
-        `✅ ${bestMatch.nom} reconnu (${(bestSimilarity * 100).toFixed(1)}%)`
+        `✅ ${result.bestMatch.nom} reconnu (${(
+          result.bestSimilarity * 100
+        ).toFixed(1)}%)`
       );
-      await enregistrerPointage(bestMatch, bestSimilarity, capturedImage);
-      setEmploye(bestMatch);
 
+      await enregistrerPointage(
+        result.bestMatch,
+        result.bestSimilarity,
+        imageSrc
+      );
+      setEmploye(result.bestMatch);
       setShowResultModal(true);
-      stopAutoScan();
     } catch (error) {
       console.log("❌ Erreur reconnaissance:", error.message);
 
       if (
-        error.message.includes("Aucun visage détecté") ||
         error.message.includes("Aucun employé reconnu") ||
-        error.message.includes("Qualité du visage insuffisante")
+        error.message.includes("Aucun visage détecté") ||
+        error.message.includes("correspondance")
       ) {
         setShowUnrecognizedModal(true);
-        stopAutoScan();
+      } else {
+        setLastResult({
+          type: "error",
+          message: error.message,
+        });
       }
     } finally {
       setIsScanning(false);
     }
   };
 
-  // Upload depuis un fichier
+  // 🔥 UPLOAD DE PHOTO
   const handlePhotoUpload = async (imageSrc) => {
     if (isScanning) return;
 
@@ -363,21 +458,23 @@ const Pointage = ({ user }) => {
 
     try {
       console.log("📁 Analyse de la photo uploadée...");
-
-      const {
-        bestMatch,
-        bestSimilarity,
-        imageSrc: uploadedImage,
-      } = await processFaceRecognition(imageSrc);
+      const result = await processFaceRecognition(imageSrc);
 
       console.log(
-        `✅ ${bestMatch.nom} reconnu (${(bestSimilarity * 100).toFixed(1)}%)`
+        `✅ ${result.bestMatch.nom} reconnu (${(
+          result.bestSimilarity * 100
+        ).toFixed(1)}%)`
       );
-      await enregistrerPointage(bestMatch, bestSimilarity, uploadedImage);
-      setEmploye(bestMatch);
+
+      await enregistrerPointage(
+        result.bestMatch,
+        result.bestSimilarity,
+        imageSrc
+      );
+      setEmploye(result.bestMatch);
       setShowResultModal(true);
     } catch (error) {
-      console.error("❌ Erreur reconnaissance:", error);
+      console.error("❌ Erreur reconnaissance upload:", error);
 
       if (error.message.includes("Aucun employé reconnu")) {
         setShowUnrecognizedModal(true);
@@ -392,42 +489,63 @@ const Pointage = ({ user }) => {
     }
   };
 
-  // Enregistrement pointage - FIREBASE
+  // 🔥 ENREGISTREMENT POINTAGE CORRIGÉ
   const enregistrerPointage = async (employe, confidence, photoCapture) => {
     try {
-      // Récupérer le dernier pointage - FIRESTORE
+      // 🔥 RÉCUPÉRER LE DERNIER POINTAGE
       const q = query(
         collection(db, "pointages"),
         where("employe_id", "==", employe.id),
         orderBy("timestamp", "desc"),
         limit(1)
       );
+
       const querySnapshot = await getDocs(q);
-
       const dernierPointage = querySnapshot.docs[0]?.data();
-      const type = dernierPointage?.type === "entrée" ? "sortie" : "entrée";
 
-      // Enregistrer le nouveau pointage - FIRESTORE
+      // 🔥 DÉTERMINER LE TYPE DE POINTAGE
+      let type = "entrée"; // Par défaut
+
+      if (dernierPointage) {
+        const derniereDate = dernierPointage.timestamp.toDate();
+        const maintenant = new Date();
+        const diffHeures = (maintenant - derniereDate) / (1000 * 60 * 60);
+
+        // Si dernier pointage < 4 heures, c'est une sortie
+        if (dernierPointage.type === "entrée" && diffHeures < 4) {
+          type = "sortie";
+        }
+        // Si dernier pointage était une sortie ou > 4h, c'est une entrée
+        else {
+          type = "entrée";
+        }
+      }
+
+      console.log(`📝 Pointage ${type} pour ${employe.nom}`);
+
+      // 🔥 ENREGISTRER LE NOUVEAU POINTAGE
       await addDoc(collection(db, "pointages"), {
         employe_id: employe.id,
         type: type,
         photo_capture_url: photoCapture,
         confidence: parseFloat(confidence.toFixed(4)),
-        timestamp: new Date(),
+        timestamp: serverTimestamp(), // 🔥 Utiliser serverTimestamp
         employe_nom: employe.nom,
         employe_email: employe.email,
+        employe_poste: employe.poste || "Non spécifié",
+        user_id: user?.uid || "system",
       });
 
-      console.log(`📝 Pointage ${type} enregistré pour ${employe.nom}`);
+      console.log(`✅ Pointage ${type} enregistré pour ${employe.nom}`);
     } catch (error) {
-      console.error("❌ Erreur enregistrement:", error);
-      throw error;
+      console.error("❌ Erreur enregistrement pointage:", error);
+      throw new Error("Erreur lors de l'enregistrement du pointage");
     }
   };
 
+  // 🔥 GESTION MODALES SIMPLIFIÉE
   const handleCloseModal = () => {
     setShowResultModal(false);
-    setShowUnrecognizedModal(false);
     setEmploye(null);
     if (
       autoCapture &&
@@ -463,21 +581,15 @@ const Pointage = ({ user }) => {
   const handleCameraError = (error) => {
     console.error("❌ Erreur caméra:", error);
     setCameraReady(false);
+    setLastResult({
+      type: "error",
+      message: "Erreur d'accès à la caméra",
+    });
   };
 
   const toggleCamera = () => {
     setCameraEnabled(!cameraEnabled);
-    if (!cameraEnabled) {
-      if (
-        autoCapture &&
-        modelsReady &&
-        cameraReady &&
-        employesCount > 0 &&
-        activeMode === "camera"
-      ) {
-        startAutoScan();
-      }
-    } else {
+    if (cameraEnabled) {
       stopAutoScan();
     }
   };
@@ -486,6 +598,37 @@ const Pointage = ({ user }) => {
     width: 640,
     height: 480,
     facingMode: "user",
+  };
+
+  // 🔥 TEXTES POUR LA DÉTECTION
+  const getDetectionText = () => {
+    switch (detectionStatus) {
+      case "initializing":
+        return "⏳ Initialisation...";
+      case "no_face":
+        return "❌ Aucun visage détecté";
+      case "detected":
+        return "⚠️ Approchez-vous de la caméra";
+      case "good_quality":
+        return "✅ Visage détecté - Prêt !";
+      default:
+        return "⏳ Initialisation...";
+    }
+  };
+
+  const getDetectionQuality = () => {
+    switch (detectionStatus) {
+      case "initializing":
+        return 0;
+      case "no_face":
+        return 0;
+      case "detected":
+        return 50;
+      case "good_quality":
+        return 100;
+      default:
+        return 0;
+    }
   };
 
   return (
@@ -621,10 +764,15 @@ const Pointage = ({ user }) => {
                     Scan {autoCapture ? "Auto" : "Manuel"}
                   </div>
                   <div
-                    className={`indicator ${isFaceDetected ? "active" : ""}`}
+                    className={`indicator ${
+                      detectionStatus === "good_quality" ? "active" : ""
+                    }`}
                   >
                     <div className="indicator-dot"></div>
-                    Visage {isFaceDetected ? "Détecté" : "Non détecté"}
+                    Visage{" "}
+                    {detectionStatus === "good_quality"
+                      ? "Détecté"
+                      : "Non détecté"}
                   </div>
                 </div>
               </div>
@@ -643,42 +791,35 @@ const Pointage = ({ user }) => {
                       onUserMediaError={handleCameraError}
                     />
 
-                    {/* Overlay de détection en temps réel */}
+                    {/* Overlay de détection */}
                     {cameraReady && (
                       <div className="detection-overlay">
-                        {/* Cadre de guidage */}
                         <div className="guide-frame"></div>
 
-                        {/* Indicateur de position du visage */}
-                        {isFaceDetected && (
-                          <div
-                            className="face-indicator"
-                            style={{
-                              left: `${facePosition.x}%`,
-                              top: `${facePosition.y}%`,
-                              width: `${facePosition.size}%`,
-                              height: `${facePosition.size}%`,
-                            }}
-                          >
-                            <div className="face-pulse"></div>
-                          </div>
-                        )}
+                        {detectionStatus !== "no_face" &&
+                          detectionStatus !== "initializing" && (
+                            <div
+                              className="face-indicator"
+                              style={{
+                                left: `${facePosition.x}%`,
+                                top: `${facePosition.y}%`,
+                                width: `${facePosition.size}%`,
+                                height: `${facePosition.size}%`,
+                              }}
+                            >
+                              <div className="face-pulse"></div>
+                            </div>
+                          )}
 
-                        {/* Barre de qualité */}
                         <div className="quality-indicator">
                           <div className="quality-label">
-                            {detectionFeedback}
+                            {getDetectionText()}
                           </div>
                           <div className="quality-bar">
                             <div
                               className="quality-fill"
-                              style={{ width: `${faceQuality}%` }}
+                              style={{ width: `${getDetectionQuality()}%` }}
                             ></div>
-                          </div>
-                          <div className="quality-percentage">
-                            {faceQuality > 0
-                              ? `${Math.round(faceQuality)}%`
-                              : "--%"}
                           </div>
                         </div>
                       </div>
@@ -692,7 +833,6 @@ const Pointage = ({ user }) => {
                             <p>Initialisation de la caméra...</p>
                           </div>
                         )}
-
                         {cameraReady && isScanning && (
                           <div className="overlay-content scanning">
                             <div className="scan-animation"></div>
@@ -774,7 +914,7 @@ const Pointage = ({ user }) => {
                     showResultModal ||
                     showUnrecognizedModal ||
                     !cameraEnabled ||
-                    faceQuality < 30
+                    detectionStatus !== "good_quality"
                   }
                   className="scan-button primary"
                 >
@@ -794,7 +934,6 @@ const Pointage = ({ user }) => {
             </div>
           </div>
         ) : (
-          /* Upload Section */
           <div className="upload-section">
             <UploadPhoto
               onPhotoUpload={handlePhotoUpload}
@@ -803,7 +942,7 @@ const Pointage = ({ user }) => {
           </div>
         )}
 
-        {/* Modal de résultat - Visage reconnu */}
+        {/* Modal de résultat */}
         {showResultModal && employe && (
           <div className="modal-overlay">
             <div className="result-modal">
@@ -845,25 +984,9 @@ const Pointage = ({ user }) => {
                   </div>
                 </div>
 
-                <div className="pointage-info">
-                  <div className="info-card">
-                    <div className="info-icon">👤</div>
-                    <div className="info-content">
-                      <div className="info-label">ID Employé</div>
-                      <div className="info-value">#{employe.id}</div>
-                    </div>
-                  </div>
-                  <div className="info-card">
-                    <div className="info-icon">📊</div>
-                    <div className="info-content">
-                      <div className="info-label">Type de Pointage</div>
-                      <div className="info-value">Entrée</div>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="success-message">
                   <p>Votre pointage a été enregistré avec succès.</p>
+                  <p className="success-subtitle">Bon travail !</p>
                 </div>
               </div>
 
@@ -877,7 +1000,7 @@ const Pointage = ({ user }) => {
           </div>
         )}
 
-        {/* Modal de résultat - Visage non reconnu */}
+        {/* Modal non reconnu */}
         {showUnrecognizedModal && (
           <div className="modal-overlay">
             <div className="result-modal unrecognized">
@@ -899,52 +1022,14 @@ const Pointage = ({ user }) => {
                 <div className="unrecognized-content">
                   <div className="unrecognized-icon">👤</div>
                   <div className="unrecognized-text">
-                    <h4>Conseils d'amélioration :</h4>
-                    <div className="improvement-tips">
-                      <div
-                        className={`tip-item ${
-                          faceQuality < 50 ? "highlight" : ""
-                        }`}
-                      >
-                        <span className="tip-icon">💡</span>
-                        <div className="tip-content">
-                          <strong>Améliorez l'éclairage</strong>
-                          <p>Placez-vous face à la lumière naturelle</p>
-                        </div>
-                      </div>
-                      <div
-                        className={`tip-item ${
-                          facePosition.size < 20 ? "highlight" : ""
-                        }`}
-                      >
-                        <span className="tip-icon">📏</span>
-                        <div className="tip-content">
-                          <strong>Approchez-vous</strong>
-                          <p>Distance idéale : 1 à 2 mètres</p>
-                        </div>
-                      </div>
-                      <div className="tip-item">
-                        <span className="tip-icon">🎯</span>
-                        <div className="tip-content">
-                          <strong>Regardez droit</strong>
-                          <p>Maintenez un contact visuel avec la caméra</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="technical-info">
-                  <details>
-                    <summary>Informations techniques</summary>
-                    <p>Le système de reconnaissance faciale nécessite :</p>
-                    <ul>
-                      <li>Un visage clairement visible et bien éclairé</li>
-                      <li>Une résolution d'image suffisante</li>
-                      <li>Un angle de vue frontal</li>
-                      <li>Aucune obstruction du visage</li>
+                    <h4>Conseils pour améliorer la reconnaissance :</h4>
+                    <ul className="improvement-tips">
+                      <li>✅ Assurez-vous d'être bien éclairé</li>
+                      <li>✅ Regardez droit vers la caméra</li>
+                      <li>✅ Approchez-vous suffisamment</li>
+                      <li>✅ Enlevez lunettes de soleil/casquette</li>
                     </ul>
-                  </details>
+                  </div>
                 </div>
               </div>
 
@@ -954,38 +1039,8 @@ const Pointage = ({ user }) => {
                   onClick={handleCloseUnrecognizedModal}
                 >
                   <span className="button-icon">🔄</span>
-                  Réessayer la reconnaissance
+                  Réessayer
                 </button>
-                {activeMode === "camera" && (
-                  <button
-                    className="confirm-button secondary"
-                    onClick={() => {
-                      setCameraEnabled(false);
-                      handleCloseUnrecognizedModal();
-                    }}
-                  >
-                    <span className="button-icon">📷</span>
-                    Désactiver la caméra
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Messages d'erreur (uniquement pour le mode upload) */}
-        {lastResult && activeMode === "upload" && (
-          <div className={`result-panel ${lastResult.type}`}>
-            <div className="result-header">
-              <div className="result-icon">
-                {lastResult.type === "success"
-                  ? "✅"
-                  : lastResult.type === "error"
-                  ? "❌"
-                  : "⚠️"}
-              </div>
-              <div className="result-content">
-                <h4>{lastResult.message}</h4>
               </div>
             </div>
           </div>
