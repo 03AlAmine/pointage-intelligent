@@ -235,15 +235,7 @@
   font-size: 1.1rem;
 }
 
-/* Camera Section 
-.camera-section {
-  background: white;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
-}
-*/
+/* Camera Section */
 .camera-container {
   padding: 0;
 }
@@ -292,8 +284,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .camera-view {
@@ -357,7 +354,8 @@
 }
 
 @keyframes scan {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(0.8);
     opacity: 1;
   }
@@ -385,7 +383,8 @@
 }
 
 @keyframes guidePulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: rgba(255, 255, 255, 0.3);
     transform: scale(1);
   }
@@ -428,7 +427,7 @@
 }
 
 .toggle-slider:before {
-  content: '';
+  content: "";
   position: absolute;
   width: 20px;
   height: 20px;
@@ -652,65 +651,6 @@
   border: 1px solid #e2e8f0;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .pointage-hero {
-    padding: 2rem 1rem;
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .hero-content {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .hero-stats {
-    justify-content: center;
-  }
-  
-  .pointage-content {
-    padding: 1rem;
-  }
-  
-  .camera-header {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .camera-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .confidence-meter {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .mode-buttons {
-    grid-template-columns: 1fr;
-  }
-  
-  .status-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .hero-text h1 {
-    font-size: 2rem;
-  }
-  
-  .hero-icon {
-    font-size: 3rem;
-    width: 60px;
-    height: 60px;
-  }
-}
-
 /* === MODAL DE RÉSULTAT === */
 
 .modal-overlay {
@@ -730,8 +670,12 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .result-modal {
@@ -871,21 +815,33 @@
   font-size: 0.95rem;
 }
 
-.pointage-time {
-  color: #475569;
-  font-weight: 500;
-  font-size: 0.9rem;
-  background: white;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  display: inline-block;
+/* Styles pour les informations de pointage */
+.pointage-info {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  border-left: 4px solid #00ff88;
 }
 
-.pointage-info {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+.pointage-type-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Styles pour le modal non reconnu */
+.unrecognized-note {
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #ef4444;
+  font-size: 14px;
 }
 
 .info-card {
@@ -995,7 +951,8 @@
 }
 
 @keyframes scanPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -1005,58 +962,6 @@
   }
 }
 
-/* Responsive pour le modal */
-@media (max-width: 768px) {
-  .modal-header {
-    padding: 1.5rem 1.5rem 1rem 1.5rem;
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .modal-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-  }
-  
-  .modal-content {
-    padding: 1rem 1.5rem;
-  }
-  
-  .employee-info {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .pointage-info {
-    grid-template-columns: 1fr;
-  }
-  
-  .confirm-button {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .result-modal {
-    margin: 1rem;
-  }
-  
-  .modal-header {
-    padding: 1.25rem 1.25rem 0.75rem 1.25rem;
-  }
-  
-  .modal-content {
-    padding: 0.75rem 1.25rem;
-  }
-  
-  .modal-actions {
-    padding: 0 1.25rem 1.25rem 1.25rem;
-  }
-}
 /* Styles pour la caméra désactivée */
 .camera-disabled {
   display: flex;
@@ -1112,7 +1017,7 @@
 }
 
 .result-modal.unrecognized .modal-icon.error {
-  background: #dc3545;
+  background: #ffffff;
   color: white;
 }
 
@@ -1175,6 +1080,7 @@
 .indicator:not(.active) {
   opacity: 0.5;
 }
+
 /* Styles pour les informations techniques */
 .technical-info {
   margin-top: 1rem;
@@ -1245,6 +1151,7 @@
   flex: 1;
   min-width: 200px;
 }
+
 /* Pointage.css - Effets Mystérieux */
 
 /* Effet Matrix */
@@ -1262,7 +1169,7 @@
 .matrix-digit {
   position: absolute;
   color: #00ff886f;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 14px;
   animation: matrix-fall linear infinite;
   opacity: 0.7;
@@ -1332,8 +1239,13 @@
 }
 
 @keyframes grid-pulse {
-  0%, 100% { opacity: 0.1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* Nœuds neuraux */
@@ -1348,11 +1260,12 @@
 }
 
 @keyframes neural-pulse {
-  0%, 100% { 
+  0%,
+  100% {
     transform: scale(1);
     opacity: 0.3;
   }
-  50% { 
+  50% {
     transform: scale(1.5);
     opacity: 1;
   }
@@ -1369,7 +1282,7 @@
 
 .quality-text {
   color: #00ff886f;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   margin-bottom: 10px;
   text-shadow: 0 0 10px #00ff886f;
 }
@@ -1393,15 +1306,30 @@
   box-shadow: 0 0 5px #00ff886f;
 }
 
-.signal-bar:nth-child(1) { height: 8px; }
-.signal-bar:nth-child(2) { height: 12px; }
-.signal-bar:nth-child(3) { height: 16px; }
-.signal-bar:nth-child(4) { height: 12px; }
-.signal-bar:nth-child(5) { height: 8px; }
+.signal-bar:nth-child(1) {
+  height: 8px;
+}
+.signal-bar:nth-child(2) {
+  height: 12px;
+}
+.signal-bar:nth-child(3) {
+  height: 16px;
+}
+.signal-bar:nth-child(4) {
+  height: 12px;
+}
+.signal-bar:nth-child(5) {
+  height: 8px;
+}
 
 @keyframes signal-wave {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Animation de scan */
@@ -1464,7 +1392,7 @@
 
 .scan-text {
   color: #00ff886f;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   margin-top: 120px;
 }
 
@@ -1472,11 +1400,129 @@
   animation: dot-blink 1.4s infinite;
 }
 
-.scan-dots .dot:nth-child(2) { animation-delay: 0.2s; }
-.scan-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+.scan-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.scan-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 @keyframes dot-blink {
-  0%, 20% { opacity: 0; }
-  50% { opacity: 1; }
-  100% { opacity: 0;}
+  0%,
+  20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pointage-hero {
+    padding: 2rem 1rem;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .hero-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .hero-stats {
+    justify-content: center;
+  }
+
+  .pointage-content {
+    padding: 1rem;
+  }
+
+  .camera-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .camera-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .confidence-meter {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .modal-header {
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .modal-content {
+    padding: 1rem 1.5rem;
+  }
+
+  .employee-info {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .pointage-info {
+    grid-template-columns: 1fr;
+  }
+
+  .confirm-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .mode-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-text h1 {
+    font-size: 2rem;
+  }
+
+  .hero-icon {
+    font-size: 3rem;
+    width: 60px;
+    height: 60px;
+  }
+
+  .result-modal {
+    margin: 1rem;
+  }
+
+  .modal-header {
+    padding: 1.25rem 1.25rem 0.75rem 1.25rem;
+  }
+
+  .modal-content {
+    padding: 0.75rem 1.25rem;
+  }
+
+  .modal-actions {
+    padding: 0 1.25rem 1.25rem 1.25rem;
+  }
 }
