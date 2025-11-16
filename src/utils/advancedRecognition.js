@@ -1,4 +1,9 @@
-import { detectFaceAndComputeEmbedding, computeSimilarity, getLoadedModels, loadModels } from './faceDetection';
+import {
+  detectFaceAndComputeEmbedding,
+  computeSimilarity,
+  getLoadedModels,
+  loadModels,
+} from "./faceDetection";
 
 export class AdvancedRecognitionSystem {
   constructor() {
@@ -12,7 +17,7 @@ export class AdvancedRecognitionSystem {
    * Vérifie si TensorFlow.js est disponible de manière sécurisée
    */
   isTensorFlowAvailable() {
-    return typeof window !== 'undefined' && window.tf !== undefined;
+    return typeof window !== "undefined" && window.tf !== undefined;
   }
 
   async initialize() {
@@ -24,7 +29,7 @@ export class AdvancedRecognitionSystem {
       if (!modelsStatus.tinyFaceDetector) {
         console.log("🔄 Chargement des modèles requis...");
         await loadModels();
-        
+
         const newStatus = getLoadedModels();
         if (!newStatus.tinyFaceDetector) {
           throw new Error("Échec du chargement du détecteur facial");
@@ -45,61 +50,70 @@ export class AdvancedRecognitionSystem {
   async analyserBaseEmbeddings(employes) {
     try {
       console.group("🔍 ANALYSE DES EMBEDDINGS EN BASE");
-      
+
       let totalEmbeddings = 0;
       let embeddingsValides = 0;
       let problemes = [];
-      
-      employes.forEach(emp => {
+
+      employes.forEach((emp) => {
         totalEmbeddings++;
-        
+
         if (!emp.embedding_facial) {
           problemes.push(`${emp.nom || emp.id}: Aucun embedding`);
           return;
         }
-        
+
         if (!Array.isArray(emp.embedding_facial)) {
           problemes.push(`${emp.nom || emp.id}: Embedding non-array`);
           return;
         }
-        
+
         const embedding = emp.embedding_facial;
-        
+
         if (embedding.length !== 128 && embedding.length !== 512) {
-          problemes.push(`${emp.nom || emp.id}: Longueur anormale (${embedding.length})`);
+          problemes.push(
+            `${emp.nom || emp.id}: Longueur anormale (${embedding.length})`
+          );
           return;
         }
-        
-        const valeursInvalides = embedding.filter(val => 
-          typeof val !== 'number' || isNaN(val) || !isFinite(val)
+
+        const valeursInvalides = embedding.filter(
+          (val) => typeof val !== "number" || isNaN(val) || !isFinite(val)
         );
-        
+
         if (valeursInvalides.length > 0) {
-          problemes.push(`${emp.nom || emp.id}: ${valeursInvalides.length} valeurs invalides`);
+          problemes.push(
+            `${emp.nom || emp.id}: ${valeursInvalides.length} valeurs invalides`
+          );
           return;
         }
-        
+
         const magnitude = this.calculerMagnitude(embedding);
         emp._magnitude = magnitude;
-        
+
         embeddingsValides++;
-        console.log(`✅ ${emp.nom}: ${embedding.length}d, magnitude: ${magnitude.toFixed(4)}`);
+        console.log(
+          `✅ ${emp.nom}: ${embedding.length}d, magnitude: ${magnitude.toFixed(
+            4
+          )}`
+        );
       });
-      
-      console.log(`📊 Résumé: ${embeddingsValides}/${totalEmbeddings} embeddings valides`);
-      
+
+      console.log(
+        `📊 Résumé: ${embeddingsValides}/${totalEmbeddings} embeddings valides`
+      );
+
       if (problemes.length > 0) {
         console.warn("🚫 Problèmes détectés:", problemes);
       }
-      
+
       console.groupEnd();
-      
+
       return {
         valides: embeddingsValides,
         total: totalEmbeddings,
-        problemes: problemes
+        problemes: problemes,
       };
-      
     } catch (error) {
       console.error("❌ Erreur analyse embeddings:", error);
       return { valides: 0, total: 0, problemes: [error.message] };
@@ -119,7 +133,7 @@ export class AdvancedRecognitionSystem {
   normaliserEmbedding(embedding) {
     const magnitude = this.calculerMagnitude(embedding);
     if (magnitude === 0) return embedding;
-    return embedding.map(val => val / magnitude);
+    return embedding.map((val) => val / magnitude);
   }
 
   async processRecognition(imageSrc, employes) {
@@ -146,7 +160,7 @@ export class AdvancedRecognitionSystem {
 
       console.log("🔍 Génération de l'embedding facial...");
       const embedding = await detectFaceAndComputeEmbedding(imageSrc);
-      
+
       if (!embedding || embedding.length === 0) {
         throw new Error("Impossible de générer l'empreinte faciale");
       }
@@ -157,36 +171,40 @@ export class AdvancedRecognitionSystem {
       let bestSimilarity = 0;
       let similarities = [];
 
-      const employesValides = employes.filter(emp => {
+      const employesValides = employes.filter((emp) => {
         if (!emp.embedding_facial || !Array.isArray(emp.embedding_facial)) {
           console.warn(`🚫 Employé ${emp.nom} sans embedding valide`);
           return false;
         }
-        
+
         const embeddingEmp = emp.embedding_facial;
-        const hasValidValues = embeddingEmp.every(val => 
-          typeof val === 'number' && !isNaN(val) && isFinite(val)
+        const hasValidValues = embeddingEmp.every(
+          (val) => typeof val === "number" && !isNaN(val) && isFinite(val)
         );
-        
+
         if (!hasValidValues) {
           console.warn(`🚫 Employé ${emp.nom} embedding corrompu`);
           return false;
         }
-        
+
         return true;
       });
 
-      console.log(`👥 ${employesValides.length} employés valides sur ${employes.length}`);
+      console.log(
+        `👥 ${employesValides.length} employés valides sur ${employes.length}`
+      );
 
       if (employesValides.length === 0) {
         throw new Error("Aucun embedding valide trouvé");
       }
 
       for (const emp of employesValides) {
-        const embeddingEmpNormalise = this.normaliserEmbedding(emp.embedding_facial);
-        
+        const embeddingEmpNormalise = this.normaliserEmbedding(
+          emp.embedding_facial
+        );
+
         const similarity = computeSimilarity(embedding, embeddingEmpNormalise);
-        
+
         if (isNaN(similarity) || similarity < 0) {
           console.warn(`📊 Similarité invalide pour ${emp.nom}: ${similarity}`);
           continue;
@@ -195,7 +213,7 @@ export class AdvancedRecognitionSystem {
         similarities.push({
           employe: emp,
           similarity: similarity,
-          percentage: (similarity * 100).toFixed(1)
+          percentage: (similarity * 100).toFixed(1),
         });
 
         console.log(`📊 ${emp.nom}: ${(similarity * 100).toFixed(1)}%`);
@@ -214,50 +232,69 @@ export class AdvancedRecognitionSystem {
       console.log("🏆 Classement:", similarities.slice(0, 3));
 
       const topMatches = similarities.slice(0, 2);
-      const ecart = topMatches.length > 1 ? topMatches[0].similarity - topMatches[1].similarity : 0;
+      const ecart =
+        topMatches.length > 1
+          ? topMatches[0].similarity - topMatches[1].similarity
+          : 0;
 
       console.log(`📈 Écart 1er/2ème: ${(ecart * 100).toFixed(1)}%`);
 
       if (bestSimilarity > this.highConfidenceThreshold && ecart > 0.1) {
-        console.log(`🎉 HAUTE CONFIANCE: ${bestMatch.nom} (${(bestSimilarity * 100).toFixed(1)}%)`);
-        return { 
-          bestMatch, 
+        console.log(
+          `🎉 HAUTE CONFIANCE: ${bestMatch.nom} (${(
+            bestSimilarity * 100
+          ).toFixed(1)}%)`
+        );
+        return {
+          bestMatch,
           bestSimilarity,
-          confidence: 'high',
+          confidence: "high",
           allMatches: similarities,
-          ecart: ecart
+          ecart: ecart,
         };
-      }
-      else if (bestSimilarity > this.similarityThreshold && ecart > 0.05) {
-        console.log(`✅ MOYENNE CONFIANCE: ${bestMatch.nom} (${(bestSimilarity * 100).toFixed(1)}%)`);
-        return { 
-          bestMatch, 
+      } else if (bestSimilarity > this.similarityThreshold && ecart > 0.05) {
+        console.log(
+          `✅ MOYENNE CONFIANCE: ${bestMatch.nom} (${(
+            bestSimilarity * 100
+          ).toFixed(1)}%)`
+        );
+        return {
+          bestMatch,
           bestSimilarity,
-          confidence: 'medium', 
+          confidence: "medium",
           allMatches: similarities,
-          ecart: ecart
+          ecart: ecart,
         };
-      }
-      else {
-        const top3 = similarities.slice(0, 3).map(s => 
-          `${s.employe.nom} (${s.percentage}%)`
-        ).join(', ');
-        
-        const raison = ecart <= 0.05 ? 
-          "Écart trop faible entre les meilleurs résultats" : 
-          "Score de similarité insuffisant";
-        
-        console.warn(`❌ ${raison}. Top 3: ${top3}`);
-        throw new Error(`Reconnaissance incertaine. ${raison}. Meilleurs: ${top3}`);
-      }
+      } else {
+        const top3 = similarities
+          .slice(0, 3)
+          .map((s) => `${s.employe.nom} (${s.percentage}%)`)
+          .join(", ");
 
+        const raison =
+          ecart <= 0.05
+            ? "Écart trop faible entre les meilleurs résultats"
+            : "Score de similarité insuffisant";
+
+        console.warn(`❌ ${raison}. Top 3: ${top3}`);
+        throw new Error(
+          `Reconnaissance incertaine. ${raison}. Meilleurs: ${top3}`
+        );
+      }
     } catch (error) {
       console.error("❌ Erreur reconnaissance:", error.message);
-      
-      if (error.message.includes("TinyYolov2") || error.message.includes("load model")) {
-        throw new Error("Système de reconnaissance non initialisé - Rechargez la page");
+
+      if (
+        error.message.includes("TinyYolov2") ||
+        error.message.includes("load model")
+      ) {
+        throw new Error(
+          "Système de reconnaissance non initialisé - Rechargez la page"
+        );
       } else if (error.message.includes("embedding")) {
-        throw new Error("Erreur de traitement facial - Réessayez avec une meilleure photo");
+        throw new Error(
+          "Erreur de traitement facial - Réessayez avec une meilleure photo"
+        );
       } else {
         throw error;
       }
@@ -269,56 +306,60 @@ export class AdvancedRecognitionSystem {
    */
   async diagnosticComplet(employes = []) {
     console.group("🔍 DIAGNOSTIC COMPLET DU SYSTÈME");
-    
+
     try {
       const models = getLoadedModels();
       console.log("📋 Modèles chargés:", models);
-      
+
       // Vérification TensorFlow sécurisée
       if (this.isTensorFlowAvailable()) {
-        console.log("✅ TensorFlow.js détecté, version:", window.tf.version.tfjs);
+        console.log(
+          "✅ TensorFlow.js détecté, version:",
+          window.tf.version.tfjs
+        );
         console.log("🔧 Backend actuel:", window.tf.getBackend());
       } else {
-        console.log("ℹ️ TensorFlow.js non détecté - fonctionnement normal avec face-api.js");
+        console.log(
+          "ℹ️ TensorFlow.js non détecté - fonctionnement normal avec face-api.js"
+        );
       }
-      
+
       if (employes.length > 0) {
         await this.analyserBaseEmbeddings(employes);
       }
-      
+
       try {
-        const testCanvas = document.createElement('canvas');
-        testCanvas.width = 200; testCanvas.height = 200;
-        const ctx = testCanvas.getContext('2d');
-        ctx.fillStyle = '#cccccc';
+        const testCanvas = document.createElement("canvas");
+        testCanvas.width = 200;
+        testCanvas.height = 200;
+        const ctx = testCanvas.getContext("2d");
+        ctx.fillStyle = "#cccccc";
         ctx.fillRect(0, 0, 200, 200);
-        
-        ctx.fillStyle = '#ffcc99';
+
+        ctx.fillStyle = "#ffcc99";
         ctx.beginPath();
         ctx.arc(100, 80, 30, 0, Math.PI * 2);
         ctx.fill();
-        
-        ctx.fillStyle = '#000000';
+
+        ctx.fillStyle = "#000000";
         ctx.beginPath();
         ctx.arc(90, 75, 5, 0, Math.PI * 2);
         ctx.arc(110, 75, 5, 0, Math.PI * 2);
         ctx.fill();
-        
+
         const testImage = testCanvas.toDataURL();
         const testDetections = await detectFaceAndComputeEmbedding(testImage);
-        
+
         console.log("🧪 Test détection:", testDetections ? "SUCCÈS" : "ÉCHEC");
-        
       } catch (testError) {
         console.error("❌ Test détection échoué:", testError);
       }
-      
+
       console.log("✅ Diagnostic terminé");
-      
     } catch (error) {
       console.error("❌ Erreur diagnostic:", error);
     }
-    
+
     console.groupEnd();
   }
 
@@ -332,6 +373,6 @@ export class AdvancedRecognitionSystem {
 }
 
 // 🔥 EXPORT POUR LES TESTS
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   window.AdvancedRecognitionSystem = AdvancedRecognitionSystem;
 }

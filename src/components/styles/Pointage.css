@@ -1245,3 +1245,238 @@
   flex: 1;
   min-width: 200px;
 }
+/* Pointage.css - Effets Mystérieux */
+
+/* Effet Matrix */
+.matrix-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, #00000097 0%, #001a00b5 100%);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.matrix-digit {
+  position: absolute;
+  color: #00ff886f;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  animation: matrix-fall linear infinite;
+  opacity: 0.7;
+}
+
+@keyframes matrix-fall {
+  0% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+/* Canvas des landmarks */
+.landmarks-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Overlay d'analyse neurale */
+.analysis-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Grille neurale */
+.neural-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.grid-line {
+  position: absolute;
+  background: rgba(0, 255, 136, 0.158);
+}
+
+.grid-line.horizontal {
+  width: 100%;
+  height: 1px;
+  animation: grid-pulse 3s ease-in-out infinite;
+}
+
+.grid-line.vertical {
+  height: 100%;
+  width: 1px;
+  animation: grid-pulse 3s ease-in-out infinite reverse;
+}
+
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.3; }
+}
+
+/* Nœuds neuraux */
+.neural-node {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #00ff886f;
+  border-radius: 50%;
+  animation: neural-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 10px #00ff886f;
+}
+
+@keyframes neural-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% { 
+    transform: scale(1.5);
+    opacity: 1;
+  }
+}
+
+/* Indicateur de qualité */
+.quality-display {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.quality-text {
+  color: #00ff886f;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px #00ff886f;
+}
+
+.signal-bars {
+  display: flex;
+  gap: 3px;
+  align-items: end;
+  justify-content: center;
+}
+
+.signal-bar {
+  width: 4px;
+  background: #00ff886f;
+  border-radius: 2px;
+  animation: signal-wave 1.5s ease-in-out infinite;
+}
+
+.signal-bar.active {
+  background: #00ff886f;
+  box-shadow: 0 0 5px #00ff886f;
+}
+
+.signal-bar:nth-child(1) { height: 8px; }
+.signal-bar:nth-child(2) { height: 12px; }
+.signal-bar:nth-child(3) { height: 16px; }
+.signal-bar:nth-child(4) { height: 12px; }
+.signal-bar:nth-child(5) { height: 8px; }
+
+@keyframes signal-wave {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* Animation de scan */
+.scanning-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 20, 0, 0.089);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.scanning-animation {
+  position: relative;
+  text-align: center;
+}
+
+.scan-ring {
+  position: absolute;
+  border: 2px solid #00ff886f;
+  border-radius: 50%;
+  animation: scan-expand 2s ease-out infinite;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.scan-ring.outer {
+  width: 200px;
+  height: 200px;
+  animation-delay: 0s;
+}
+
+.scan-ring.middle {
+  width: 150px;
+  height: 150px;
+  animation-delay: 0.3s;
+}
+
+.scan-ring.inner {
+  width: 100px;
+  height: 100px;
+  animation-delay: 0.6s;
+}
+
+@keyframes scan-expand {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+.scan-text {
+  color: #00ff886f;
+  font-family: 'Courier New', monospace;
+  margin-top: 120px;
+}
+
+.scan-dots .dot {
+  animation: dot-blink 1.4s infinite;
+}
+
+.scan-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+.scan-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-blink {
+  0%, 20% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0;}
+}
